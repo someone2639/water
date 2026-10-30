@@ -1,6 +1,8 @@
 BUILD_DIR=build
 T3D_INST=~/Devel/tiny3d
 
+LIBSPZ=$(BUILD_DIR)/libspz.a
+
 include $(N64_INST)/include/n64.mk
 include $(T3D_INST)/t3d.mk
 
@@ -9,7 +11,10 @@ GLTF_FLAGS = ''
 
 PROJECT_NAME=t3d_18_particles
 
-src = main.c
+CFLAGS += -Iinclude -Ispz/src/cc/
+CXXFLAGS += -Iinclude -Ispz/src/cc/ -Itinyzzz
+
+src = $(wildcard src/*.c)
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
@@ -22,6 +27,23 @@ filesystem/scene.t3dm: GLTF_FLAGS = --bvh
 filesystem/platformer.t3dm: GLTF_FLAGS = --bvh
 
 all: $(PROJECT_NAME).z64
+
+$(BUILD_DIR)/spz/%.o: spz/src/cc/%.cc
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+$(BUILD_DIR)/%.o: tinyzzz/%.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+OBJ := $(src:%.c=$(BUILD_DIR)/%.o)
+
+SPZ_OBJS := $(BUILD_DIR)/spz/load-spz.o \
+            $(BUILD_DIR)/spz/splat-c-types.o \
+            $(BUILD_DIR)/spz/splat-types.o 
+
+ZSTD_OBJ := $(BUILD_DIR)/zstdD.o
+
+$(LIBSPZ): $(SPZ_OBJS) | $(BUILD_DIR)/spz/
+	$(AR) rcs $@ $^
 
 filesystem/%.sprite: assets/%.png
 	@mkdir -p $(dir $@)
@@ -40,10 +62,13 @@ filesystem/%.t3dm: assets/%.glb
 	$(N64_BINDIR)/mkasset -c 2 -o filesystem $@
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
-$(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.c=$(BUILD_DIR)/%.o)
+$(BUILD_DIR)/$(PROJECT_NAME).elf: $(OBJ) $(ZSTD_OBJ)
 
 $(PROJECT_NAME).z64: N64_ROM_TITLE="TinyPX - Particles"
-$(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs
+$(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs 
+
+$(BUILD_DIR)/spz/:
+	mkdir -p $@
 
 clean:
 	rm -rf $(BUILD_DIR) *.z64
@@ -54,9 +79,8 @@ build_lib:
 	make -C $(T3D_INST)
 	make all
 
-sc64: build_lib
-	sc64deployer --remote 192.168.0.6:9064 upload --tv ntsc *.z64
-	curl 192.168.0.6:9065/reset
+test: $(PROJECT_NAME).z64
+	ares $<
 
 -include $(wildcard $(BUILD_DIR)/*.d)
 

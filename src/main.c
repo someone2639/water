@@ -63,8 +63,8 @@ int main()
   // In contrast to triangles, there is no split between loading and drawing.
   // So later there will be only one command to draw all of them in one go.
   // Meaning you only have to allocate an buffer of arbitrary size here and fill it with data.
-  uint32_t particleCountMax = 100'000;
-  uint32_t particleCount = 2000;
+  uint32_t particleCountMax = 500'000;
+  uint32_t particleCount = 239534;
 
   // NOTE: just like with vertices, particles are interleaved in pairs of 2.
   // So one TPXParticleS8 struct always contains 2 particles.
