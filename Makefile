@@ -11,8 +11,8 @@ GLTF_FLAGS = ''
 
 PROJECT_NAME=t3d_18_particles
 
-CFLAGS += -Iinclude -Ispz/src/cc/
-CXXFLAGS += -Iinclude -Ispz/src/cc/ -Itinyzzz
+CFLAGS += -Iinclude -Ispz/src/cc/ -Wno-error
+CXXFLAGS += -Iinclude -Ispz/src/cc/ -Itinyzzz -Wno-error
 
 src = $(wildcard src/*.c)
 assets_png = $(wildcard assets/*.png)
@@ -28,7 +28,7 @@ filesystem/platformer.t3dm: GLTF_FLAGS = --bvh
 
 all: $(PROJECT_NAME).z64
 
-$(BUILD_DIR)/spz/%.o: spz/src/cc/%.cc
+$(BUILD_DIR)/spz/%.o: spz/src/cc/%.cc | $(BUILD_DIR)/spz/
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 $(BUILD_DIR)/%.o: tinyzzz/%.c

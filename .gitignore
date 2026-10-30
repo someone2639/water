@@ -2,4 +2,5 @@ build/
 *.z64
 *.spz
 filesystem/
+*.ply
 
