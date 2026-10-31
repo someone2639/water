@@ -18,10 +18,12 @@ src = $(wildcard src/*.c)
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
+assets_splat = $(wildcard assets/*.ply)
 
 assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
-			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
+			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm))) \
+			  $(addprefix filesystem/,$(notdir $(assets_splat:%.ply=%.splat)))
 
 filesystem/scene.t3dm: GLTF_FLAGS = --bvh
 filesystem/platformer.t3dm: GLTF_FLAGS = --bvh
@@ -60,6 +62,11 @@ filesystem/%.t3dm: assets/%.glb
 	@echo "    [T3D-MODEL] $@"
 	$(T3D_GLTF_TO_3D) $(GLTF_FLAGS) "$<" $@
 	$(N64_BINDIR)/mkasset -c 2 -o filesystem $@
+
+filesystem/%.splat: assets/%.ply
+	@mkdir -p $(dir $@)
+	@echo "    [SPLAT] $@"
+	uv run tools/convert.py $< -o $@
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(OBJ) $(ZSTD_OBJ)

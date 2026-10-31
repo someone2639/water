@@ -3,4 +3,5 @@ build/
 *.spz
 filesystem/
 *.ply
+*.splat
 
