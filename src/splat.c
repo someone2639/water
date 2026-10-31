@@ -36,7 +36,7 @@ uint8_t read_u8(FILE *f) {
 }
 
 int16_t convert_float(float f) {
-    return 
+    return (int16_t) (f * (1000.f / 240.f));
 }
 
 /**
@@ -68,18 +68,18 @@ int read_splat(TPXParticleS16 *particles, char *path, uint32_t partCount) {
         part.rotation[3] = read_u8(f);
 
         if ((cursor & 1) == 0) {
-            particles[cursor].posA[0] = (int16_t)part.pos[0];
-            particles[cursor].posA[1] = (int16_t)part.pos[1];
-            particles[cursor].posA[2] = (int16_t)part.pos[2];
+            particles[cursor].posA[0] = convert_float(part.pos[0]);
+            particles[cursor].posA[1] = convert_float(part.pos[1]);
+            particles[cursor].posA[2] = convert_float(part.pos[2]);
             particles[cursor].sizeA = 20;
             particles[cursor].colorA[0] = part.color[0];
             particles[cursor].colorA[1] = part.color[1];
             particles[cursor].colorA[2] = part.color[2];
             particles[cursor].colorA[3] = 8;
         } else {
-            particles[cursor].posB[0] = (int16_t)part.pos[0];
-            particles[cursor].posB[1] = (int16_t)part.pos[1];
-            particles[cursor].posB[2] = (int16_t)part.pos[2];
+            particles[cursor].posB[0] = convert_float(part.pos[0]);
+            particles[cursor].posB[1] = convert_float(part.pos[1]);
+            particles[cursor].posB[2] = convert_float(part.pos[2]);
             particles[cursor].sizeB = 20;
             particles[cursor].colorB[0] = part.color[0];
             particles[cursor].colorB[1] = part.color[1];

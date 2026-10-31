@@ -112,19 +112,48 @@ int main() {
 
         joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
         joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
-        if (joypad.stick_x < 10 && joypad.stick_x > -10)
+        if (joypad.stick_x < 10 && joypad.stick_x > -10) {
             joypad.stick_x = 0;
-        if (joypad.stick_y < 10 && joypad.stick_y > -10)
+        }
+        if (joypad.stick_y < 10 && joypad.stick_y > -10) {
             joypad.stick_y = 0;
+        }
 
-        if (joypad.btn.a)
+        if (joypad.btn.a) {
             partMatScaleVal += deltaTime * 0.6f;
-        if (joypad.btn.b)
+        }
+        if (joypad.btn.b) {
             partMatScaleVal -= deltaTime * 0.6f;
+        }
 
 #if RSPQ_PROFILE
         measureTime = joypad.btn.z;
 #endif
+        {
+            float camSpeed = deltaTime * 1.1f;
+            float camRotSpeed = deltaTime * 0.02f;
+
+            camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
+            camDir.v[1] = fm_sinf(camRotY);
+            camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
+            fm_vec3_norm(&camDir, &camDir);
+
+            if (joypad.btn.z) {
+                camRotX += (float) joypad.stick_x * camRotSpeed;
+                camRotY -= (float) joypad.stick_y * camRotSpeed;
+            } else {
+                camPos.v[0] += camDir.v[0] * (float) joypad.stick_y * camSpeed;
+                camPos.v[1] += camDir.v[1] * (float) joypad.stick_y * camSpeed;
+                camPos.v[2] += camDir.v[2] * (float) joypad.stick_y * camSpeed;
+                camPos.v[0] += camDir.v[2] * (float) joypad.stick_x * -camSpeed;
+                camPos.v[2] -= camDir.v[0] * (float) joypad.stick_x * -camSpeed;
+            }
+
+            camTarget.v[0] = camPos.v[0] + camDir.v[0];
+            camTarget.v[1] = camPos.v[1] + camDir.v[1];
+            camTarget.v[2] = camPos.v[2] + camDir.v[2];
+        }
+
 
         partSizeX = 1.0f;
         partSizeY = 1.0f;
