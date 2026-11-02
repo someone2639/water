@@ -9,15 +9,18 @@
 
 #include "splat.h"
 
-typedef struct SplatPart {
-    float pos[3];
-    float scale[3];
-    uint8_t color[4];
-    uint8_t rotation[4];
-} SplatPart;
+uint32_t sampleEveryNVertices = 2;
+
+void print_splat_info(SplatPart *part) {
+    debugf("{%f %f %f} {%f %f %f}\n",
+        part->pos[0], part->pos[1], part->pos[2],
+        part->scale[0], part->scale[1], part->scale[2]
+    );
+}
 
 float read_float_le(FILE *f) {
     char buf[4];
+    assert(f != NULL);
     fread(buf, 4, 1, f);
 
     char ret[4];
@@ -43,12 +46,24 @@ int16_t convert_float(float f) {
  * Static particles simulating grass.
  * This will create a random grid of 3 particles stacked on top of each other representing grass-blades.
  */
-int read_splat(TPXParticleS16 *particles, char *path, uint32_t partCount) {
-    FILE *f = fopen(path, "rb");
+int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
+    char path[256];
+    uint32_t numVertices = 0;
+
+    FILE *ini = fopen(iniPath, "r");
+    fscanf(ini, "%s %lu", path, &numVertices);
+    fclose(ini);
+
+    char finalpath[296];
+    sprintf(finalpath, "rom://%s", path);
+
+    FILE *f = fopen(finalpath, "rb");
 
     uint32_t cursor = 0;
 
-    while (!feof(f) && cursor < 200000) {
+    numVertices = 190000;
+
+    for (uint32_t sample = 0; sample < (numVertices); sample++) {
         SplatPart part;
         part.pos[0] = read_float_le(f);
         part.pos[1] = read_float_le(f);
@@ -67,30 +82,36 @@ int read_splat(TPXParticleS16 *particles, char *path, uint32_t partCount) {
         part.rotation[2] = read_u8(f);
         part.rotation[3] = read_u8(f);
 
-        if ((cursor & 1) == 0) {
-            particles[cursor].posA[0] = convert_float(part.pos[0]);
-            particles[cursor].posA[1] = convert_float(part.pos[1]);
-            particles[cursor].posA[2] = convert_float(part.pos[2]);
-            particles[cursor].sizeA = 20;
-            particles[cursor].colorA[0] = part.color[0];
-            particles[cursor].colorA[1] = part.color[1];
-            particles[cursor].colorA[2] = part.color[2];
-            particles[cursor].colorA[3] = 8;
-        } else {
-            particles[cursor].posB[0] = convert_float(part.pos[0]);
-            particles[cursor].posB[1] = convert_float(part.pos[1]);
-            particles[cursor].posB[2] = convert_float(part.pos[2]);
-            particles[cursor].sizeB = 20;
-            particles[cursor].colorB[0] = part.color[0];
-            particles[cursor].colorB[1] = part.color[1];
-            particles[cursor].colorB[2] = part.color[2];
-            particles[cursor].colorB[3] = 8;
-        }
+        if ((sample % sampleEveryNVertices) == 0) {
+            if ((cursor & 1) == 0) {
+                particles[cursor].posA[0] = convert_float(part.pos[0]);
+                particles[cursor].posA[1] = convert_float(part.pos[1]);
+                particles[cursor].posA[2] = convert_float(part.pos[2]);
+                particles[cursor].sizeA = 3;
+                particles[cursor].colorA[0] = part.color[0];
+                particles[cursor].colorA[1] = part.color[1];
+                particles[cursor].colorA[2] = part.color[2];
+                particles[cursor].colorA[3] = 8;
+            } else {
+                particles[cursor].posB[0] = convert_float(part.pos[0]);
+                particles[cursor].posB[1] = convert_float(part.pos[1]);
+                particles[cursor].posB[2] = convert_float(part.pos[2]);
+                particles[cursor].sizeB = 3;
+                particles[cursor].colorB[0] = part.color[0];
+                particles[cursor].colorB[1] = part.color[1];
+                particles[cursor].colorB[2] = part.color[2];
+                particles[cursor].colorB[3] = 8;
+            }
 
-        cursor++;
+            cursor++;
 
-        if ((cursor % 10000) == 0) {
-            debugf("Processed %lu particles...\n", cursor);
+            if ((cursor % 10000) == 0) {
+                debugf("Processed %lu particles...\n", cursor);
+            }
+
+            if ((cursor % 2000) == 0) {
+                print_splat_info(&part);
+            }
         }
     }
 

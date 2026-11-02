@@ -173,7 +173,7 @@ int main() {
         particleRot = (fm_vec3_t) { { 0, 0, 0 } };
         particlePos.y = 0;
         if (needRebuild) {
-            particleCount = read_splat(particlesS16, "rom://test.splat", particleCount);
+            particleCount = read_splat(particlesS16, "rom://test.splat.ini", particleCount);
         }
         particleMatScale = (fm_vec3_t) { { partMatScaleVal, partSizeY * 2.9f, partMatScaleVal } };
         rdpq_set_env_color(blend_colors((color_t) { 0xAA, 0xFF, 0x55, 0xFF },

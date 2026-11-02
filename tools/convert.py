@@ -12,6 +12,7 @@ import os
 numSplats = 0
 
 def process_ply_to_splat(ply_file_path):
+    global numSplats
     plydata = PlyData.read(ply_file_path)
     vert = plydata["vertex"]
     sorted_indices = np.argsort(
@@ -50,8 +51,7 @@ def process_ply_to_splat(ply_file_path):
             .astype(np.uint8)
             .tobytes()
         )
-
-    numSplats = len(sorted_indices)
+        numSplats += 1
 
     return buffer.getvalue()
 
