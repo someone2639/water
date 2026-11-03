@@ -8,8 +8,19 @@
 #include <t3d/tpx.h>
 
 #include "splat.h"
+#include "mymath.h"
 
-uint32_t sampleEveryNVertices = 2;
+uint32_t sampleEveryNVertices = 1;
+
+float debugLargestScale = 0.0;
+
+#define PART_SCALE_MAX (200.0f)
+
+static void storeLargestScale(float f) {
+    if (f > debugLargestScale) {
+        debugLargestScale = f;
+    }
+}
 
 void print_splat_info(SplatPart *part) {
     debugf("{%f %f %f} {%f %f %f}\n",
@@ -38,8 +49,16 @@ uint8_t read_u8(FILE *f) {
     return buf[0];
 }
 
+int is_denormal(float x) {
+    return fpclassify(x) == FP_SUBNORMAL;
+}
+
 int16_t convert_float(float f) {
-    return (int16_t) (f * (1000.f / 240.f));
+    if (is_denormal(f)) {
+        return 0;
+    }
+    // return (int16_t) (f * (1000.f / 240.f));
+    return (int16_t)(fscale(f, -240.0, 240.0, -256, 255));
 }
 
 /**
@@ -61,8 +80,6 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
 
     uint32_t cursor = 0;
 
-    numVertices = 190000;
-
     for (uint32_t sample = 0; sample < (numVertices); sample++) {
         SplatPart part;
         part.pos[0] = read_float_le(f);
@@ -82,12 +99,16 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
         part.rotation[2] = read_u8(f);
         part.rotation[3] = read_u8(f);
 
+        storeLargestScale(part.pos[0]);
+        storeLargestScale(part.pos[1]);
+        storeLargestScale(part.pos[2]);
+
         if ((sample % sampleEveryNVertices) == 0) {
             if ((cursor & 1) == 0) {
                 particles[cursor].posA[0] = convert_float(part.pos[0]);
                 particles[cursor].posA[1] = convert_float(part.pos[1]);
                 particles[cursor].posA[2] = convert_float(part.pos[2]);
-                particles[cursor].sizeA = 3;
+                particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
                 particles[cursor].colorA[0] = part.color[0];
                 particles[cursor].colorA[1] = part.color[1];
                 particles[cursor].colorA[2] = part.color[2];
@@ -96,7 +117,7 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
                 particles[cursor].posB[0] = convert_float(part.pos[0]);
                 particles[cursor].posB[1] = convert_float(part.pos[1]);
                 particles[cursor].posB[2] = convert_float(part.pos[2]);
-                particles[cursor].sizeB = 3;
+                particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
                 particles[cursor].colorB[0] = part.color[0];
                 particles[cursor].colorB[1] = part.color[1];
                 particles[cursor].colorB[2] = part.color[2];
@@ -108,12 +129,10 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
             if ((cursor % 10000) == 0) {
                 debugf("Processed %lu particles...\n", cursor);
             }
-
-            if ((cursor % 2000) == 0) {
-                print_splat_info(&part);
-            }
         }
     }
+
+    debugf("LARGEST SCALE: %f\n", debugLargestScale);
 
     return cursor & ~1;
 }

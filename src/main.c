@@ -218,7 +218,8 @@ int main() {
         rdpq_set_mode_standard();
         rdpq_mode_zbuf(true, true);
         rdpq_mode_zoverride(true, 0, 0);
-        rdpq_mode_combiner(RDPQ_COMBINER1((PRIM, 0, ENV, 0), (0, 0, 0, 1)));
+        rdpq_mode_combiner(RDPQ_COMBINER1((0, 0, 0, PRIM), (0, 0, 0, 1)));
+        rdpq_mode_alphacompare(10);
 
         // tpx is its own ucode, so nothing that was set up in t3d carries over automatically.
         // For convenience, you can call 'tpx_state_from_t3d' which will copy over
