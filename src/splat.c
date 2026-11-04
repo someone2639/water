@@ -13,9 +13,10 @@
 uint32_t sampleEveryNVertices = 1;
 
 float debugLargestScale = 0.0;
+uint32_t numSubNormals = 0;
 
-#define PART_SCALE_MAX (0.2f)
-#define REJECT_POINTS_FARTHER_THAN (100.0f)
+#define PART_SCALE_MAX (10.0f)
+#define REJECT_POINTS_FARTHER_THAN (10000.0f)
 
 static void storeLargestScale(float f) {
     if (f > debugLargestScale) {
@@ -50,16 +51,9 @@ uint8_t read_u8(FILE *f) {
     return buf[0];
 }
 
-int is_denormal(float x) {
-    return fpclassify(x) == FP_SUBNORMAL;
-}
-
 int16_t convert_float(float f) {
-    if (is_denormal(f)) {
-        return 0;
-    }
-    // return (int16_t) (f * (1000.f / 240.f));
-    return (int16_t)(fscale(f, -240.0, 240.0, -256, 255));
+    return (int16_t) (f);
+    // return (int16_t)(fscale(f, -240.0, 240.0, -256, 255));
 }
 
 /**
@@ -109,7 +103,7 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
                     storeLargestScale(part.scale[0]);
                     storeLargestScale(part.scale[1]);
                     storeLargestScale(part.scale[2]);
-                    particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
+                    particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 255);
                     particles[cursor].colorA[0] = part.color[0];
                     particles[cursor].colorA[1] = part.color[1];
                     particles[cursor].colorA[2] = part.color[2];
@@ -121,7 +115,7 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
                     storeLargestScale(part.scale[0]);
                     storeLargestScale(part.scale[1]);
                     storeLargestScale(part.scale[2]);
-                    particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
+                    particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 255);
                     particles[cursor].colorB[0] = part.color[0];
                     particles[cursor].colorB[1] = part.color[1];
                     particles[cursor].colorB[2] = part.color[2];
