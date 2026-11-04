@@ -14,7 +14,8 @@ uint32_t sampleEveryNVertices = 1;
 
 float debugLargestScale = 0.0;
 
-#define PART_SCALE_MAX (200.0f)
+#define PART_SCALE_MAX (0.2f)
+#define REJECT_POINTS_FARTHER_THAN (100.0f)
 
 static void storeLargestScale(float f) {
     if (f > debugLargestScale) {
@@ -99,35 +100,39 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
         part.rotation[2] = read_u8(f);
         part.rotation[3] = read_u8(f);
 
-        storeLargestScale(part.pos[0]);
-        storeLargestScale(part.pos[1]);
-        storeLargestScale(part.pos[2]);
-
         if ((sample % sampleEveryNVertices) == 0) {
-            if ((cursor & 1) == 0) {
-                particles[cursor].posA[0] = convert_float(part.pos[0]);
-                particles[cursor].posA[1] = convert_float(part.pos[1]);
-                particles[cursor].posA[2] = convert_float(part.pos[2]);
-                particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
-                particles[cursor].colorA[0] = part.color[0];
-                particles[cursor].colorA[1] = part.color[1];
-                particles[cursor].colorA[2] = part.color[2];
-                particles[cursor].colorA[3] = 8;
-            } else {
-                particles[cursor].posB[0] = convert_float(part.pos[0]);
-                particles[cursor].posB[1] = convert_float(part.pos[1]);
-                particles[cursor].posB[2] = convert_float(part.pos[2]);
-                particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
-                particles[cursor].colorB[0] = part.color[0];
-                particles[cursor].colorB[1] = part.color[1];
-                particles[cursor].colorB[2] = part.color[2];
-                particles[cursor].colorB[3] = 8;
-            }
+            if (vmag(part.pos) < REJECT_POINTS_FARTHER_THAN) {
+                if ((cursor & 1) == 0) {
+                    particles[cursor].posA[0] = convert_float(part.pos[0]);
+                    particles[cursor].posA[1] = convert_float(part.pos[1]);
+                    particles[cursor].posA[2] = convert_float(part.pos[2]);
+                    storeLargestScale(part.scale[0]);
+                    storeLargestScale(part.scale[1]);
+                    storeLargestScale(part.scale[2]);
+                    particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
+                    particles[cursor].colorA[0] = part.color[0];
+                    particles[cursor].colorA[1] = part.color[1];
+                    particles[cursor].colorA[2] = part.color[2];
+                    particles[cursor].colorA[3] = 8;
+                } else {
+                    particles[cursor].posB[0] = convert_float(part.pos[0]);
+                    particles[cursor].posB[1] = convert_float(part.pos[1]);
+                    particles[cursor].posB[2] = convert_float(part.pos[2]);
+                    storeLargestScale(part.scale[0]);
+                    storeLargestScale(part.scale[1]);
+                    storeLargestScale(part.scale[2]);
+                    particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 20);
+                    particles[cursor].colorB[0] = part.color[0];
+                    particles[cursor].colorB[1] = part.color[1];
+                    particles[cursor].colorB[2] = part.color[2];
+                    particles[cursor].colorB[3] = 8;
+                }
 
-            cursor++;
+                cursor++;
 
-            if ((cursor % 10000) == 0) {
-                debugf("Processed %lu particles...\n", cursor);
+                if ((cursor % 10000) == 0) {
+                    debugf("Processed %lu particles...\n", cursor);
+                }
             }
         }
     }
