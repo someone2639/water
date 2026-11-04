@@ -103,7 +103,7 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
                     storeLargestScale(part.scale[0]);
                     storeLargestScale(part.scale[1]);
                     storeLargestScale(part.scale[2]);
-                    particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 255);
+                    particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, PART_SCALE_MAX / 2, 255);
                     particles[cursor].colorA[0] = part.color[0];
                     particles[cursor].colorA[1] = part.color[1];
                     particles[cursor].colorA[2] = part.color[2];
@@ -115,7 +115,7 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
                     storeLargestScale(part.scale[0]);
                     storeLargestScale(part.scale[1]);
                     storeLargestScale(part.scale[2]);
-                    particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, 1, 255);
+                    particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, PART_SCALE_MAX / 2, 255);
                     particles[cursor].colorB[0] = part.color[0];
                     particles[cursor].colorB[1] = part.color[1];
                     particles[cursor].colorB[2] = part.color[2];
@@ -133,14 +133,8 @@ int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
 
     debugf("LARGEST SCALE: %f\n", debugLargestScale);
 
+    fclose(f);
+
     return cursor & ~1;
 }
 
-color_t blend_colors(color_t colorA, color_t colorB, float t) {
-    color_t color;
-    color.r = (uint8_t) (colorA.r * (1.0f - t) + colorB.r * t);
-    color.g = (uint8_t) (colorA.g * (1.0f - t) + colorB.g * t);
-    color.b = (uint8_t) (colorA.b * (1.0f - t) + colorB.b * t);
-    color.a = (uint8_t) (colorA.a * (1.0f - t) + colorB.a * t);
-    return color;
-}

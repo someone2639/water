@@ -176,9 +176,6 @@ int main() {
             particleCount = read_splat(particlesS16, "rom://test.splat.ini", particleCount);
         }
         particleMatScale = (fm_vec3_t) { { partMatScaleVal, partSizeY * 2.9f, partMatScaleVal } };
-        rdpq_set_env_color(blend_colors((color_t) { 0xAA, 0xFF, 0x55, 0xFF },
-                                        (color_t) { 0xFF, 0xAA, 0x55, 0xFF },
-                                        fm_sinf(time) * 0.5f + 0.5f));
 
         isS16 = true;
         needRebuild = false;
@@ -199,7 +196,7 @@ int main() {
 
         t3d_viewport_attach(&viewport);
 
-        t3d_screen_clear_color(RGBA32(30, 30, 30, 0));
+        t3d_screen_clear_color(RGBA32(255, 255, 255, 0));
         t3d_screen_clear_depth();
 
         t3d_light_set_ambient(colorAmbient);
