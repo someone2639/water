@@ -17,6 +17,8 @@ typedef struct {
 using namespace std;
 
 #define REJECT_POSITIONS_LARGER_THAN (200.0f)
+#define YSCALE (2)
+#define PARTICLE_WIDTH (30.0f)
 
 float vmag(float a, float b, float c) {
     return sqrtf((a * a) + (b * b) + (c * c));
@@ -27,7 +29,7 @@ float fscale(float f, float omin, float omax, float nmin, float nmax) {
 }
 
 int8_t convert_size(float f) {
-    return (int8_t)fscale(f, 0, 240, 1, 255);
+    return (int8_t)fscale(f, 0, 240, 1, PARTICLE_WIDTH);
 }
 
 uint8_t convert_color(float f) {
@@ -76,9 +78,9 @@ void writeChunk(FILE *f, void *chunk) {
     write8(f, null, 0);
 
     // colorB
-    write8(f, chunkdat, 19);
     write8(f, chunkdat, 20);
     write8(f, chunkdat, 21);
+    write8(f, chunkdat, 22);
     write8(f, null, 0);
 }
 
@@ -114,7 +116,7 @@ int main(int argc, char **argv) {
         if (posmag < REJECT_POSITIONS_LARGER_THAN) {
             if ((cursor & 1) == 0) {
                 particleChunk.posA[0] = convert_position(gc.positions[(i * 3) + 0]);
-                particleChunk.posA[1] = convert_position(gc.positions[(i * 3) + 1]);
+                particleChunk.posA[1] = convert_position(gc.positions[(i * 3) + 1]) / YSCALE;
                 particleChunk.posA[2] = convert_position(gc.positions[(i * 3) + 2]);
 
                 particleChunk.sizeA = convert_size(
@@ -130,7 +132,7 @@ int main(int argc, char **argv) {
                 particleChunk.colorA[2] = convert_color(gc.colors[(i * 3) + 2]);
             } else {
                 particleChunk.posB[0] = convert_position(gc.positions[(i * 3) + 0]);
-                particleChunk.posB[1] = convert_position(gc.positions[(i * 3) + 1]);
+                particleChunk.posB[1] = convert_position(gc.positions[(i * 3) + 1]) / YSCALE;
                 particleChunk.posB[2] = convert_position(gc.positions[(i * 3) + 2]);
 
                 particleChunk.sizeB = convert_size(
