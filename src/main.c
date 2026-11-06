@@ -135,15 +135,22 @@ int main() {
             camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
             fm_vec3_norm(&camDir, &camDir);
 
-            if (joypad.btn.z) {
-                camRotX += (float) joypad.stick_x * camRotSpeed;
-                camRotY -= (float) joypad.stick_y * camRotSpeed;
-            } else {
-                camPos.v[0] += camDir.v[0] * (float) joypad.stick_y * camSpeed;
-                camPos.v[1] += camDir.v[1] * (float) joypad.stick_y * camSpeed;
-                camPos.v[2] += camDir.v[2] * (float) joypad.stick_y * camSpeed;
-                camPos.v[0] += camDir.v[2] * (float) joypad.stick_x * -camSpeed;
-                camPos.v[2] -= camDir.v[0] * (float) joypad.stick_x * -camSpeed;
+            camPos.v[0] += camDir.v[0] * (float) joypad.stick_y * camSpeed;
+            camPos.v[1] += camDir.v[1] * (float) joypad.stick_y * camSpeed;
+            camPos.v[2] += camDir.v[2] * (float) joypad.stick_y * camSpeed;
+            camPos.v[0] += camDir.v[2] * (float) joypad.stick_x * -camSpeed;
+            camPos.v[2] -= camDir.v[0] * (float) joypad.stick_x * -camSpeed;
+            if (joypad.btn.c_left) {
+                camRotX -= 40 * camRotSpeed;
+            }
+            if (joypad.btn.c_right) {
+                camRotX += 40 * camRotSpeed;
+            }
+            if (joypad.btn.c_up) {
+                camRotY -= 40 * camRotSpeed;
+            }
+            if (joypad.btn.c_down) {
+                camRotY += 40 * camRotSpeed;
             }
 
             camTarget.v[0] = camPos.v[0] + camDir.v[0];
@@ -162,10 +169,6 @@ int main() {
         if (particleCount > particleCountMax)
             particleCount = particleCountMax;
 
-        // A few example particles systems.
-        // This will modify the particle buffer on the CPU side.
-        bool isS16 = false;
-
         time += deltaTime * 1.0f;
         particleRot = (fm_vec3_t) { { 0, 0, 0 } };
         particlePos.y = 0;
@@ -174,7 +177,6 @@ int main() {
         }
         particleMatScale = (fm_vec3_t) { { partMatScaleVal, partSizeY * 2.9f, partMatScaleVal } };
 
-        isS16 = true;
         needRebuild = false;
 
         t3d_mat4fp_from_srt_euler(&matPartFP[frameIdx], particleMatScale.v, particleRot.v,
