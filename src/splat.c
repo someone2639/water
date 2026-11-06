@@ -60,81 +60,14 @@ int16_t convert_float(float f) {
  * Static particles simulating grass.
  * This will create a random grid of 3 particles stacked on top of each other representing grass-blades.
  */
-int read_splat(TPXParticleS16 *particles, char *iniPath, uint32_t partCount) {
-    char path[256];
-    uint32_t numVertices = 0;
+int read_splat(TPXParticleS16 *particles, char *path, uint32_t partCount) {
+    FILE *f = fopen(path, "rb");
+    fseek(f, 0, SEEK_END);
+    size_t fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
 
-    FILE *ini = fopen(iniPath, "r");
-    fscanf(ini, "%s %lu", path, &numVertices);
-    fclose(ini);
+    fread(particles, fsize, 1, f);
 
-    char finalpath[296];
-    sprintf(finalpath, "rom://%s", path);
-
-    FILE *f = fopen(finalpath, "rb");
-
-    uint32_t cursor = 0;
-
-    for (uint32_t sample = 0; sample < (numVertices); sample++) {
-        SplatPart part;
-        part.pos[0] = read_float_le(f);
-        part.pos[1] = read_float_le(f);
-        part.pos[2] = read_float_le(f);
-        part.scale[0] = read_float_le(f);
-        part.scale[1] = read_float_le(f);
-        part.scale[2] = read_float_le(f);
-
-        part.color[0] = read_u8(f);
-        part.color[1] = read_u8(f);
-        part.color[2] = read_u8(f);
-        part.color[3] = read_u8(f);
-
-        part.rotation[0] = read_u8(f);
-        part.rotation[1] = read_u8(f);
-        part.rotation[2] = read_u8(f);
-        part.rotation[3] = read_u8(f);
-
-        if ((sample % sampleEveryNVertices) == 0) {
-            if (vmag(part.pos) < REJECT_POINTS_FARTHER_THAN) {
-                if ((cursor & 1) == 0) {
-                    particles[cursor].posA[0] = convert_float(part.pos[0]);
-                    particles[cursor].posA[1] = convert_float(part.pos[1]);
-                    particles[cursor].posA[2] = convert_float(part.pos[2]);
-                    storeLargestScale(part.scale[0]);
-                    storeLargestScale(part.scale[1]);
-                    storeLargestScale(part.scale[2]);
-                    particles[cursor].sizeA = fscale(vmag(part.scale), 0, PART_SCALE_MAX, PART_SCALE_MAX / 2, 255);
-                    particles[cursor].colorA[0] = part.color[0];
-                    particles[cursor].colorA[1] = part.color[1];
-                    particles[cursor].colorA[2] = part.color[2];
-                    particles[cursor].colorA[3] = 8;
-                } else {
-                    particles[cursor].posB[0] = convert_float(part.pos[0]);
-                    particles[cursor].posB[1] = convert_float(part.pos[1]);
-                    particles[cursor].posB[2] = convert_float(part.pos[2]);
-                    storeLargestScale(part.scale[0]);
-                    storeLargestScale(part.scale[1]);
-                    storeLargestScale(part.scale[2]);
-                    particles[cursor].sizeB = fscale(vmag(part.scale), 0, PART_SCALE_MAX, PART_SCALE_MAX / 2, 255);
-                    particles[cursor].colorB[0] = part.color[0];
-                    particles[cursor].colorB[1] = part.color[1];
-                    particles[cursor].colorB[2] = part.color[2];
-                    particles[cursor].colorB[3] = 8;
-                }
-
-                cursor++;
-
-                if ((cursor % 10000) == 0) {
-                    debugf("Processed %lu particles...\n", cursor);
-                }
-            }
-        }
-    }
-
-    debugf("LARGEST SCALE: %f\n", debugLargestScale);
-
-    fclose(f);
-
-    return cursor & ~1;
+    return (fsize / sizeof(TPXParticleS16)) & ~1;
 }
 
