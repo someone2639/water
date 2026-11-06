@@ -30,6 +30,9 @@ filesystem/platformer.t3dm: GLTF_FLAGS = --bvh
 
 all: $(PROJECT_NAME).z64
 
+tools/spz2tiny3d:
+	make -C tools
+
 $(BUILD_DIR)/spz/%.o: spz/src/cc/%.cc | $(BUILD_DIR)/spz/
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
@@ -63,7 +66,7 @@ filesystem/%.t3dm: assets/%.glb
 	$(T3D_GLTF_TO_3D) $(GLTF_FLAGS) "$<" $@
 	$(N64_BINDIR)/mkasset -c 2 -o filesystem $@
 
-filesystem/%.splat: assets/%.spz
+filesystem/%.splat: assets/%.spz | tools/spz2tiny3d
 	@mkdir -p $(dir $@)
 	@echo "    [SPLAT] $@"
 	./tools/spz2tiny3d $< $@
@@ -80,6 +83,7 @@ $(BUILD_DIR)/spz/:
 clean:
 	rm -rf $(BUILD_DIR) *.z64
 	rm -rf filesystem
+	make -C tools clean
 
 build_lib:
 	rm -rf $(BUILD_DIR) *.z64

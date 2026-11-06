@@ -25,7 +25,6 @@
 
 #define RCP_TICKS_TO_USECS(ticks) (((ticks) * 1000000ULL) / RCP_FREQUENCY)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-static const char *EXAMPLE_NAMES[] = { "Random", "Flame", "Grass" };
 
 #define FB_COUNT 3
 
@@ -84,8 +83,6 @@ int main() {
     fm_vec3_t camDir = { { 0, 0, 1 } };
     float camRotX = 0.0f;
     float camRotY = -0.2f;
-    bool showModel = true;
-    uint32_t example = 0;
 
     uint8_t colorAmbient[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     fm_vec3_t lightDirVec = { { 0.0f, 0.0f, 1.0f } };

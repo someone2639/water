@@ -13,3 +13,6 @@ CXXFLAGS += -I../spz/src/cc/ -I.
 
 spz2tiny3d: spz2tiny3d.o load-spz.o splat-c-types.o splat-types.o
 	$(CXX) -o $@ $^ -lzstd -lz
+
+clean:
+	rm -rf spz2tiny3d spz2tiny3d.o load-spz.o splat-c-types.o splat-types.o

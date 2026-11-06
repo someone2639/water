@@ -16,16 +16,26 @@ typedef struct {
 
 using namespace std;
 
+#define REJECT_POSITIONS_LARGER_THAN (200.0f)
+
 float vmag(float a, float b, float c) {
     return sqrtf((a * a) + (b * b) + (c * c));
 }
 
-uint8_t convert_color(float f) {
-    return (uint8_t)((0.5 + 0.282095 * f) * 256.0f);
+float fscale(float f, float omin, float omax, float nmin, float nmax) {
+    return (((f - omin) * (nmax - nmin)) / (omax - omin)) + nmin;
 }
 
-int16_t convert_float(float f) {
-    return (int16_t)f;
+int8_t convert_size(float f) {
+    return (int8_t)fscale(f, 0, 240, 1, 255);
+}
+
+uint8_t convert_color(float f) {
+    return (uint8_t)(((0.5 + (0.282095 * f)) * 256.0f));
+}
+
+int16_t convert_position(float f) {
+    return (int16_t)(f * 30.0f);
 }
 
 void write16BE(FILE *f, uint8_t *data, uint32_t offset) {
@@ -69,7 +79,12 @@ void writeChunk(FILE *f, void *chunk) {
 }
 
 int main(int argc, char **argv) {
-    spz::GaussianCloud gc = spz::loadSpz(argv[1], spz::UnpackOptions());
+    spz::GaussianCloud gc = spz::loadSpz(
+        argv[1],
+        spz::UnpackOptions(
+            spz::CoordinateSystem::RDF
+        )
+    );
 
     char *outputFile = argv[2];
     FILE *f = fopen(outputFile, "wb+");
@@ -86,36 +101,50 @@ int main(int argc, char **argv) {
         auto &scale = gc.positions[i];
         auto &color = gc.colors[i];
 
-        if (cursor & 1) {
-            particleChunk.posA[0] = convert_float(gc.positions[(i * 3) + 0]);
-            particleChunk.posA[1] = convert_float(gc.positions[(i * 3) + 1]);
-            particleChunk.posA[2] = convert_float(gc.positions[(i * 3) + 2]);
+        float posmag = vmag(
+            gc.positions[(i * 3) + 0],
+            gc.positions[(i * 3) + 1],
+            gc.positions[(i * 3) + 2]
+        );
 
-            particleChunk.sizeA = vmag(
-                gc.scales[(i * 3) + 0],
-                gc.scales[(i * 3) + 1],
-                gc.scales[(i * 3) + 2]
-            );
+        if (posmag < REJECT_POSITIONS_LARGER_THAN) {
+            if (cursor & 1) {
+                particleChunk.posA[0] = convert_position(gc.positions[(i * 3) + 0]);
+                particleChunk.posA[1] = convert_position(gc.positions[(i * 3) + 1]);
+                particleChunk.posA[2] = convert_position(gc.positions[(i * 3) + 2]);
 
-            particleChunk.colorA[0] = convert_color(gc.colors[(i * 3) + 0]);
-            particleChunk.colorA[1] = convert_color(gc.colors[(i * 3) + 1]);
-            particleChunk.colorA[2] = convert_color(gc.colors[(i * 3) + 2]);
-        } else {
-            particleChunk.posB[0] = convert_float(gc.positions[(i * 3) + 0]);
-            particleChunk.posB[1] = convert_float(gc.positions[(i * 3) + 1]);
-            particleChunk.posB[2] = convert_float(gc.positions[(i * 3) + 2]);
+                particleChunk.sizeA = convert_size(
+                    vmag(
+                        gc.scales[(i * 3) + 0],
+                        gc.scales[(i * 3) + 1],
+                        gc.scales[(i * 3) + 2]
+                    )
+                );
 
-            particleChunk.sizeB = vmag(
-                gc.scales[(i * 3) + 0],
-                gc.scales[(i * 3) + 1],
-                gc.scales[(i * 3) + 2]
-            );
+                particleChunk.colorA[0] = convert_color(gc.colors[(i * 3) + 0]);
+                particleChunk.colorA[1] = convert_color(gc.colors[(i * 3) + 1]);
+                particleChunk.colorA[2] = convert_color(gc.colors[(i * 3) + 2]);
+            } else {
+                particleChunk.posB[0] = convert_position(gc.positions[(i * 3) + 0]);
+                particleChunk.posB[1] = convert_position(gc.positions[(i * 3) + 1]);
+                particleChunk.posB[2] = convert_position(gc.positions[(i * 3) + 2]);
 
-            particleChunk.colorB[0] = convert_color(gc.colors[(i * 3) + 0]);
-            particleChunk.colorB[1] = convert_color(gc.colors[(i * 3) + 1]);
-            particleChunk.colorB[2] = convert_color(gc.colors[(i * 3) + 2]);
+                particleChunk.sizeB = convert_size(
+                    vmag(
+                        gc.scales[(i * 3) + 0],
+                        gc.scales[(i * 3) + 1],
+                        gc.scales[(i * 3) + 2]
+                    )
+                );
 
-            writeChunk(f, &particleChunk);
+                particleChunk.colorB[0] = convert_color(gc.colors[(i * 3) + 0]);
+                particleChunk.colorB[1] = convert_color(gc.colors[(i * 3) + 1]);
+                particleChunk.colorB[2] = convert_color(gc.colors[(i * 3) + 2]);
+
+                writeChunk(f, &particleChunk);
+            }
+
+            cursor++;
         }
     }
 }
