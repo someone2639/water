@@ -4,4 +4,5 @@ build/
 filesystem/
 *.ply
 *.splat
-
+*.o
+tools/spz2tiny3d

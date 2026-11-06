@@ -173,7 +173,7 @@ int main() {
         particleRot = (fm_vec3_t) { { 0, 0, 0 } };
         particlePos.y = 0;
         if (needRebuild) {
-            particleCount = read_splat(particlesS16, "rom://test.splat.ini", particleCount);
+            particleCount = read_splat(particlesS16, "rom://test.splat", particleCount);
         }
         particleMatScale = (fm_vec3_t) { { partMatScaleVal, partSizeY * 2.9f, partMatScaleVal } };
 

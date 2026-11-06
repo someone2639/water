@@ -63,10 +63,10 @@ filesystem/%.t3dm: assets/%.glb
 	$(T3D_GLTF_TO_3D) $(GLTF_FLAGS) "$<" $@
 	$(N64_BINDIR)/mkasset -c 2 -o filesystem $@
 
-filesystem/%.splat: assets/%.ply
+filesystem/%.splat: assets/%.spz
 	@mkdir -p $(dir $@)
 	@echo "    [SPLAT] $@"
-	uv run tools/convert.py $< -o $@
+	./tools/spz2tiny3d $< $@
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(OBJ) $(ZSTD_OBJ)
