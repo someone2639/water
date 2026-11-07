@@ -17,8 +17,8 @@ typedef struct {
 using namespace std;
 
 #define REJECT_POSITIONS_LARGER_THAN (200.0f)
-#define YSCALE (2)
-#define PARTICLE_WIDTH (30.0f)
+#define YSCALE (1)
+#define PARTICLE_WIDTH (48.0f)
 
 float vmag(float a, float b, float c) {
     return sqrtf((a * a) + (b * b) + (c * c));
@@ -41,7 +41,7 @@ uint8_t convert_color(float f) {
 }
 
 int16_t convert_position(float f) {
-    return (int16_t)(f * 50.0f);
+    return (int16_t)(f * 30.0f);
 }
 
 void write16BE(FILE *f, uint8_t *data, uint32_t offset) {
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
     spz::GaussianCloud gc = spz::loadSpz(
         argv[1],
         spz::UnpackOptions(
-            // spz::CoordinateSystem::RDF
+            spz::CoordinateSystem::RDF
         )
     );
 

@@ -28,8 +28,7 @@
 
 #define FB_COUNT 3
 
-[[noreturn]]
-int main() {
+[[noreturn]] int main() {
     debug_init_isviewer();
     debug_init_usblog();
 
@@ -101,8 +100,20 @@ int main() {
     int frameIdx = 0;
     bool measureTime = false;
 
-    for (;;) {
+
+    while (true) {
         // ======== Update ======== //
+        sprite_t *particleTex = sprite_load("rom://tex16.ia16.sprite");
+        rdpq_texparms_t particleTexP = {};
+        int logScale =  - __builtin_ctz(particleTex->height / 8);
+        rdpq_sprite_upload(TILE0, particleTex, &(rdpq_texparms_t){
+            .s.repeats = REPEAT_INFINITE,
+            .t.repeats = REPEAT_INFINITE,
+
+            .s.scale_log = logScale,
+            .t.scale_log = logScale,
+        });
+
         frameIdx = (frameIdx + 1) % FB_COUNT;
         joypad_poll();
         float deltaTime = display_get_delta_time();
@@ -213,9 +224,13 @@ int main() {
         // this correctly.
         rdpq_set_mode_standard();
         rdpq_mode_zbuf(true, true);
+        rdpq_mode_antialias(AA_NONE);
         rdpq_mode_zoverride(true, 0, 0);
-        rdpq_mode_combiner(RDPQ_COMBINER1((0, 0, 0, PRIM), (0, 0, 0, 1)));
+        rdpq_mode_filter(FILTER_POINT);
         rdpq_mode_alphacompare(10);
+
+        rdpq_mode_combiner(RDPQ_COMBINER1((PRIM,0,TEX0,0), (0,0,0,TEX0)));
+        rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
 
         // tpx is its own ucode, so nothing that was set up in t3d carries over automatically.
         // For convenience, you can call 'tpx_state_from_t3d' which will copy over
@@ -226,11 +241,13 @@ int main() {
         // Also make sure that the first stack operation you do after 'tpx_state_from_t3d' is a push and
         // not a set.
         tpx_matrix_push(&matPartFP[frameIdx]);
-        tpx_state_set_base_size(72);
+        // tpx_state_set_base_size(72);
 
         // While each particle has its own size, there is a global scaling factor that can be set.
         // This can only scale particles down, so the range is 0.0 - 1.0.
         tpx_state_set_scale(partSizeX, partSizeY);
+
+        tpx_state_set_tex_params(0, 0);
 
         if (measureTime) {
             rspq_wait();
@@ -242,7 +259,7 @@ int main() {
         // Now draw particles. internally this will load, transform and draw them in one go on the RSP.
         // While the ucode can only handle a 344 at a time, this function will automatically batch them
         // so you can specify an arbitrary amount of particles (as long as it's an even count)
-        tpx_particle_draw_s16(particlesS16, particleCount);
+        tpx_particle_draw_tex_s16(particlesS16, particleCount);
 
         if (measureTime) {
             rspq_highpri_end();
