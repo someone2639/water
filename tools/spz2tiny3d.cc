@@ -18,7 +18,8 @@ using namespace std;
 
 #define REJECT_POSITIONS_LARGER_THAN (200.0f)
 #define YSCALE (1)
-#define PARTICLE_WIDTH (48.0f)
+#define LARGEST_SCALE (1.0f)
+#define PARTICLE_WIDTH (24.0f)
 
 float vmag(float a, float b, float c) {
     return sqrtf((a * a) + (b * b) + (c * c));
@@ -29,7 +30,7 @@ float fscale(float f, float omin, float omax, float nmin, float nmax) {
 }
 
 int8_t convert_size(float f) {
-    return (int8_t)fscale(f, 0, 240, 1, PARTICLE_WIDTH);
+    return (int8_t)fscale(f, 0, LARGEST_SCALE, 1, PARTICLE_WIDTH);
 }
 
 uint8_t convert_color(float f) {
@@ -41,7 +42,7 @@ uint8_t convert_color(float f) {
 }
 
 int16_t convert_position(float f) {
-    return (int16_t)(f * 30.0f);
+    return (int16_t)(f * 1000.0f);
 }
 
 void write16BE(FILE *f, uint8_t *data, uint32_t offset) {
