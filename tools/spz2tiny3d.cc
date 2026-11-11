@@ -16,7 +16,7 @@ typedef struct {
 
 using namespace std;
 
-#define REJECT_POSITIONS_LARGER_THAN (400.0f)
+#define REJECT_POSITIONS_LARGER_THAN (1000.0f)
 #define YSCALE (2)
 #define YOFF (0)
 #define LARGEST_SCALE (240.0f)
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
         if (posmag < REJECT_POSITIONS_LARGER_THAN) {
             if ((cursor & 1) == 0) {
                 particleChunk.posA[0] = convert_position(gc.positions[(i * 3) + 0]);
-                particleChunk.posA[1] = -((convert_position(gc.positions[(i * 3) + 1]) / YSCALE) + YOFF);
+                particleChunk.posA[1] = (convert_position(gc.positions[(i * 3) + 1]) / YSCALE) + YOFF;
                 particleChunk.posA[2] = convert_position(gc.positions[(i * 3) + 2]);
 
                 particleChunk.sizeA = convert_size(
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
                 particleChunk.colorA[2] = convert_color(gc.colors[(i * 3) + 2]);
             } else {
                 particleChunk.posB[0] = convert_position(gc.positions[(i * 3) + 0]);
-                particleChunk.posB[1] = -((convert_position(gc.positions[(i * 3) + 1]) / YSCALE) + YOFF);
+                particleChunk.posB[1] = (convert_position(gc.positions[(i * 3) + 1]) / YSCALE) + YOFF;
                 particleChunk.posB[2] = convert_position(gc.positions[(i * 3) + 2]);
 
                 particleChunk.sizeB = convert_size(

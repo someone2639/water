@@ -68,6 +68,6 @@ int read_splat(TPXParticleS16 *particles, char *path, uint32_t partCount) {
 
     fread(particles, fsize, 1, f);
 
-    return (fsize / sizeof(TPXParticleS16)) & ~1;
+    return (fsize / sizeof(TPXParticleS16)) * 2;
 }
 

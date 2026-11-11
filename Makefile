@@ -18,12 +18,12 @@ src = $(wildcard src/*.c)
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
-assets_splat = $(wildcard assets/*.ply)
+assets_splat = $(wildcard assets/*.spz)
 
 assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
 			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm))) \
-			  $(addprefix filesystem/,$(notdir $(assets_splat:%.ply=%.splat)))
+			  $(addprefix filesystem/,$(notdir $(assets_splat:%.spz=%.splat)))
 
 filesystem/scene.t3dm: GLTF_FLAGS = --bvh
 filesystem/platformer.t3dm: GLTF_FLAGS = --bvh
@@ -74,7 +74,7 @@ filesystem/%.splat: assets/%.spz | tools/spz2tiny3d
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(OBJ) $(ZSTD_OBJ)
 
-$(PROJECT_NAME).z64: N64_ROM_TITLE="TinyPX - Particles"
+$(PROJECT_NAME).z64: N64_ROM_TITLE="someone2639watercomp"
 $(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs 
 
 $(BUILD_DIR)/spz/:
