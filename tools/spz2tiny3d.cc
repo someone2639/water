@@ -16,10 +16,38 @@ typedef struct {
 
 using namespace std;
 
-#define REJECT_POSITIONS_LARGER_THAN (200.0f)
-#define YSCALE (1)
-#define LARGEST_SCALE (1.0f)
-#define PARTICLE_WIDTH (24.0f)
+#define REJECT_POSITIONS_LARGER_THAN (400.0f)
+#define YSCALE (2)
+#define YOFF (0)
+#define LARGEST_SCALE (240.0f)
+#define PARTICLE_WIDTH (150.0f)
+
+typedef struct {
+    int16_t minX; int16_t maxX;
+    int16_t minY; int16_t maxY;
+    int16_t minZ; int16_t maxZ;
+} BoundingBox;
+
+BoundingBox clipPlane = {
+    .minX = -50, .maxX = 50,
+    .minY = -50, .maxY = 50,
+    .minZ = -50, .maxZ = 50,
+};
+
+bool isInBox(int16_t *pos) {
+    if ((pos[0] < clipPlane.minX) || pos[0] > clipPlane.maxX) {
+        return false;
+    }
+    if ((pos[1] < clipPlane.minY) || pos[1] > clipPlane.maxY) {
+        return false;
+    }
+    if ((pos[2] < clipPlane.minZ) || pos[2] > clipPlane.maxZ) {
+        return false;
+    }
+
+
+    return true;
+}
 
 float vmag(float a, float b, float c) {
     return sqrtf((a * a) + (b * b) + (c * c));
@@ -114,10 +142,16 @@ int main(int argc, char **argv) {
             gc.positions[(i * 3) + 2]
         );
 
+        int16_t pos_converted[3] = {
+            convert_position(gc.positions[(i * 3) + 0]),
+            convert_position(gc.positions[(i * 3) + 1]),
+            convert_position(gc.positions[(i * 3) + 2]),
+        };
+
         if (posmag < REJECT_POSITIONS_LARGER_THAN) {
             if ((cursor & 1) == 0) {
                 particleChunk.posA[0] = convert_position(gc.positions[(i * 3) + 0]);
-                particleChunk.posA[1] = convert_position(gc.positions[(i * 3) + 1]) / YSCALE;
+                particleChunk.posA[1] = -((convert_position(gc.positions[(i * 3) + 1]) / YSCALE) + YOFF);
                 particleChunk.posA[2] = convert_position(gc.positions[(i * 3) + 2]);
 
                 particleChunk.sizeA = convert_size(
@@ -133,7 +167,7 @@ int main(int argc, char **argv) {
                 particleChunk.colorA[2] = convert_color(gc.colors[(i * 3) + 2]);
             } else {
                 particleChunk.posB[0] = convert_position(gc.positions[(i * 3) + 0]);
-                particleChunk.posB[1] = convert_position(gc.positions[(i * 3) + 1]) / YSCALE;
+                particleChunk.posB[1] = -((convert_position(gc.positions[(i * 3) + 1]) / YSCALE) + YOFF);
                 particleChunk.posB[2] = convert_position(gc.positions[(i * 3) + 2]);
 
                 particleChunk.sizeB = convert_size(

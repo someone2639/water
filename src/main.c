@@ -103,7 +103,7 @@
 
     while (true) {
         // ======== Update ======== //
-        sprite_t *particleTex = sprite_load("rom://tex16.ia16.sprite");
+        sprite_t *particleTex = sprite_load("rom://tex16.ia4.sprite");
         rdpq_texparms_t particleTexP = {};
         int logScale =  - __builtin_ctz(particleTex->height / 8);
         rdpq_sprite_upload(TILE0, particleTex, &(rdpq_texparms_t){
@@ -277,7 +277,7 @@
 
         t3d_debug_print_start();
         t3d_debug_printf(20, 18, "[D] Particles: %ld", particleCount);
-        t3d_debug_printf(20, 30, "[C] %.2f %.2f", partSizeX, partSizeY);
+        t3d_debug_printf(20, 30, "[CAM] %.2f %.2f %.2f", camPos.v[0], camPos.v[1], camPos.v[2]);
         t3d_debug_printf(220, 18, "FPS: %.2f", display_get_fps());
 
         if (measureTime) {
