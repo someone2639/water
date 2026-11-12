@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
                     )
                 );
 
-                particleChunk.texOffsetA = selectType(&gc.scales[(i * 3)]);
+                particleChunk.texOffsetA = selectType(&gc.scales[(i * 3)]) * 32;
 
                 particleChunk.colorA[0] = convert_color(gc.colors[(i * 3) + 0]);
                 particleChunk.colorA[1] = convert_color(gc.colors[(i * 3) + 1]);
@@ -207,7 +207,7 @@ int main(int argc, char **argv) {
                     )
                 );
 
-                particleChunk.texOffsetB = selectType(&gc.scales[(i * 3)]);
+                particleChunk.texOffsetB = selectType(&gc.scales[(i * 3)]) * 32;
 
                 particleChunk.colorB[0] = convert_color(gc.colors[(i * 3) + 0]);
                 particleChunk.colorB[1] = convert_color(gc.colors[(i * 3) + 1]);
