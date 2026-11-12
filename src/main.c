@@ -69,7 +69,7 @@
     // The 8bit variant should be preferred when possible (e.g. in local particle effects)
     uint32_t allocSize = sizeof(TPXParticleS16) * particleCountMax / 2;
     TPXParticleS16 *particlesS16 = malloc_uncached(allocSize);
-    debugf("Particle-Buffer %ldkb\n", allocSize / 1024);
+    debugf("Particle-Buffer %ldkb\n", (allocSize * 3) / 1024);
 
     T3DMat4FP *matFP = malloc_uncached(sizeof(T3DMat4FP));
     T3DMat4FP *matPartFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
@@ -103,7 +103,7 @@
 
     while (true) {
         // ======== Update ======== //
-        sprite_t *particleTex = sprite_load("rom://tex16.ia4.sprite");
+        sprite_t *particleTex = sprite_load("rom://particleOrientation.ia4.sprite");
         rdpq_texparms_t particleTexP = {};
         int logScale =  - __builtin_ctz(particleTex->height / 8);
         rdpq_sprite_upload(TILE0, particleTex, &(rdpq_texparms_t){
@@ -173,18 +173,11 @@
         partSizeX = 1.0f;
         partSizeY = 1.0f;
 
-        if (particleCount < 2)
-            particleCount = 2;
-        if (particleCount > 0xFFFFFF)
-            particleCount = 0;
-        if (particleCount > particleCountMax)
-            particleCount = particleCountMax;
-
         time += deltaTime * 1.0f;
         particleRot = (fm_vec3_t) { { 0, 0, 0 } };
         particlePos.y = 0;
         if (needRebuild) {
-            particleCount = read_splat(particlesS16, "rom://test.splat", particleCount);
+            particleCount = read_splat(particlesS16, "rom://register.splat");
         }
         particleMatScale = (fm_vec3_t) { { partMatScaleVal, partSizeY * 2.9f, partMatScaleVal } };
 

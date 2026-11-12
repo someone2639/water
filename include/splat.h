@@ -10,4 +10,4 @@ typedef struct SplatPart {
 } SplatPart;
 
 color_t blend_colors(color_t colorA, color_t colorB, float t);
-int read_splat(TPXParticleS16 *particles, char *path, uint32_t partCount);
+int read_splat(TPXParticleS16 *particles, char *path);

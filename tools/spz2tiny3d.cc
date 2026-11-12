@@ -1,7 +1,13 @@
+#include <fstream>
 #include <iostream>
 #include <vector>
-#include <ranges> // Required for std::views::zip
 #include "load-spz.h"
+
+typedef enum {
+    PT_NORMAL = 0,
+    PT_OBLONG,
+    PT_OBTALL,
+} PartType;
 
 typedef struct {
   int16_t posA[3];
@@ -49,6 +55,26 @@ bool isInBox(int16_t *pos) {
     return true;
 }
 
+uint8_t selectType(float *scale) {
+    float avgXY = (scale[0] + scale[1]) / 2;
+    float avgXZ = (scale[0] + scale[2]) / 2;
+    float avgYZ = (scale[1] + scale[2]) / 2;
+
+    #define SCALE_THRESHOLD (1.1f)
+
+    if ((scale[2] * SCALE_THRESHOLD) > avgXY) {
+        return (uint8_t)PT_OBTALL;
+    }
+    if ((scale[0] * SCALE_THRESHOLD) > avgYZ) {
+        return (uint8_t)PT_OBLONG;
+    }
+    if ((scale[1] * SCALE_THRESHOLD) > avgXZ) {
+        return (uint8_t)PT_OBLONG;
+    }
+
+    return (uint8_t)PT_NORMAL;
+}
+
 float vmag(float a, float b, float c) {
     return sqrtf((a * a) + (b * b) + (c * c));
 }
@@ -89,16 +115,16 @@ void writeChunk(FILE *f, void *chunk) {
     write16BE(f, chunkdat, 0);
     write16BE(f, chunkdat, 2);
     write16BE(f, chunkdat, 4);
-    // sizeA + null
+    // sizeA + type
     write8(f, chunkdat, 6);
-    write8(f, null, 0);
+    write8(f, chunkdat, 7);
     // posB
     write16BE(f, chunkdat, 8);
     write16BE(f, chunkdat, 10);
     write16BE(f, chunkdat, 12);
     // sizeB + null
     write8(f, chunkdat, 14);
-    write8(f, null, 0);
+    write8(f, chunkdat, 15);
 
     // colorA
     write8(f, chunkdat, 16);
@@ -117,7 +143,7 @@ int main(int argc, char **argv) {
     spz::GaussianCloud gc = spz::loadSpz(
         argv[1],
         spz::UnpackOptions(
-            spz::CoordinateSystem::RDF
+            // spz::CoordinateSystem::RDF
         )
     );
 
@@ -162,9 +188,12 @@ int main(int argc, char **argv) {
                     )
                 );
 
+                particleChunk.texOffsetA = selectType(&gc.scales[(i * 3)]);
+
                 particleChunk.colorA[0] = convert_color(gc.colors[(i * 3) + 0]);
                 particleChunk.colorA[1] = convert_color(gc.colors[(i * 3) + 1]);
                 particleChunk.colorA[2] = convert_color(gc.colors[(i * 3) + 2]);
+                particleChunk.colorA[3] = particleChunk.texOffsetA;
             } else {
                 particleChunk.posB[0] = convert_position(gc.positions[(i * 3) + 0]);
                 particleChunk.posB[1] = (convert_position(gc.positions[(i * 3) + 1]) / YSCALE) + YOFF;
@@ -178,9 +207,12 @@ int main(int argc, char **argv) {
                     )
                 );
 
+                particleChunk.texOffsetB = selectType(&gc.scales[(i * 3)]);
+
                 particleChunk.colorB[0] = convert_color(gc.colors[(i * 3) + 0]);
                 particleChunk.colorB[1] = convert_color(gc.colors[(i * 3) + 1]);
                 particleChunk.colorB[2] = convert_color(gc.colors[(i * 3) + 2]);
+                particleChunk.colorB[3] = particleChunk.texOffsetB;
 
                 writeChunk(f, &particleChunk);
             }

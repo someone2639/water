@@ -60,7 +60,7 @@ int16_t convert_float(float f) {
  * Static particles simulating grass.
  * This will create a random grid of 3 particles stacked on top of each other representing grass-blades.
  */
-int read_splat(TPXParticleS16 *particles, char *path, uint32_t partCount) {
+int read_splat(TPXParticleS16 *particles, char *path) {
     FILE *f = fopen(path, "rb");
     fseek(f, 0, SEEK_END);
     size_t fsize = ftell(f);
