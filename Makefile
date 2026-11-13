@@ -62,9 +62,9 @@ filesystem/%.font64: assets/%.ttf
 
 filesystem/%.t3dm: assets/%.glb
 	@mkdir -p $(dir $@)
-	@echo "    [T3D-MODEL] $@"
-	$(T3D_GLTF_TO_3D) $(GLTF_FLAGS) "$<" $@
-	$(N64_BINDIR)/mkasset -c 2 -o filesystem $@
+	@echo "    [T3D-MODEL2] $@"
+	$(T3D_GLTF_TO_3D) $< $@
+	$(N64_BINDIR)/mkasset -o filesystem $@
 
 filesystem/%.splat: assets/%.spz | tools/spz2tiny3d
 	@mkdir -p $(dir $@)
@@ -93,6 +93,11 @@ build_lib:
 test: $(PROJECT_NAME).z64
 	ares $<
 
+load: $(PROJECT_NAME).z64
+	mv $< /run/media/$(USER)/89B5-BFEF/
+
 -include $(wildcard $(BUILD_DIR)/*.d)
 
 .PHONY: all clean
+
+print-% : ; $(info $* is a $(flavor $*) variable set to [$($*)]) @true

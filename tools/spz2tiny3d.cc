@@ -22,6 +22,8 @@ typedef struct {
 
 using namespace std;
 
+uint32_t sample_every_n_particles = 3;
+
 #define REJECT_POSITIONS_LARGER_THAN (1000.0f)
 #define YSCALE (2)
 #define YOFF (0)
@@ -60,7 +62,7 @@ uint8_t selectType(float *scale) {
     float avgXZ = (scale[0] + scale[2]) / 2;
     float avgYZ = (scale[1] + scale[2]) / 2;
 
-    #define SCALE_THRESHOLD (1.1f)
+    #define SCALE_THRESHOLD (1.2f)
 
     if ((scale[2] * SCALE_THRESHOLD) > avgXY) {
         return (uint8_t)PT_OBTALL;
@@ -155,9 +157,13 @@ int main(int argc, char **argv) {
     }
 
     int cursor = 0;
+    TPXParticleS16 particleChunk;
 
     for (int i = 0; i < gc.numPoints; i++) {
-        TPXParticleS16 particleChunk;
+        if ((i % sample_every_n_particles) != 0) {
+            continue;
+        }
+
         auto &pos = gc.positions[i];
         auto &scale = gc.positions[i];
         auto &color = gc.colors[i];

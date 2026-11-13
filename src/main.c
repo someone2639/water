@@ -100,6 +100,8 @@
     int frameIdx = 0;
     bool measureTime = false;
 
+    T3DModel *videoplayer = t3d_model_load("rom:/videosurface.t3dm");
+
 
     while (true) {
         // ======== Update ======== //
@@ -138,7 +140,7 @@
         measureTime = joypad.btn.z;
 #endif
         {
-            float camSpeed = deltaTime * 1.1f;
+            float camSpeed = deltaTime * 8.0f;
             float camRotSpeed = deltaTime * 0.02f;
 
             camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
