@@ -17,6 +17,7 @@ uint32_t numSubNormals = 0;
 
 #define PART_SCALE_MAX (10.0f)
 #define REJECT_POINTS_FARTHER_THAN (10000.0f)
+// #define FIND_CENTER
 
 static void storeLargestScale(float f) {
     if (f > debugLargestScale) {
@@ -67,6 +68,26 @@ int read_splat(TPXParticleS16 *particles, char *path) {
     fseek(f, 0, SEEK_SET);
 
     fread(particles, fsize, 1, f);
+
+#ifdef FIND_CENTER
+    float center[3] = {0, 0, 0};
+    for (int i = 0; i < (fsize / sizeof(TPXParticleS16)); i++) {
+        TPXParticleS16 *s = &particles[i];
+        center[0] += s->posA[0];
+        center[1] += s->posA[1];
+        center[2] += s->posA[2];
+
+        center[0] += s->posB[0];
+        center[1] += s->posB[1];
+        center[2] += s->posB[2];
+    }
+
+    center[0] /= (fsize / sizeof(TPXParticleS16));
+    center[1] /= (fsize / sizeof(TPXParticleS16));
+    center[2] /= (fsize / sizeof(TPXParticleS16));
+
+    debugf("CENTER: %f %f %f\n", center[0], center[1], center[2]);
+#endif
 
     return (fsize / sizeof(TPXParticleS16)) * 2;
 }

@@ -19,11 +19,13 @@ assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
 assets_splat = $(wildcard assets/*.spz)
+assets_movie = $(wildcard assets/*.mp4)
 
 assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
 			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm))) \
-			  $(addprefix filesystem/,$(notdir $(assets_splat:%.spz=%.splat)))
+			  $(addprefix filesystem/,$(notdir $(assets_splat:%.spz=%.splat))) \
+			  $(addprefix filesystem/,$(notdir $(assets_movie:%.mp4=%.h264)))
 
 filesystem/scene.t3dm: GLTF_FLAGS = --bvh
 filesystem/platformer.t3dm: GLTF_FLAGS = --bvh
@@ -70,6 +72,23 @@ filesystem/%.splat: assets/%.spz | tools/spz2tiny3d
 	@mkdir -p $(dir $@)
 	@echo "    [SPLAT] $@"
 	./tools/spz2tiny3d $< $@
+
+# Re-encode the movie's video stream if ffmpeg is available
+filesystem/%.h264: assets/%.mp4
+	@mkdir -p "$(dir $@)"
+	@echo "    [VIDEO] $@"
+	if [ -s "$<" ]; then \
+		if command -v ffmpeg >/dev/null; then \
+			$(N64_VIDEOCONV) -o filesystem --codec h264 --quality 70 --quick --seek 5 "$<"; \
+		else \
+			echo "videoplayer: Skipping video re-encoding because ffmpeg is not installed" ; \
+			touch "$@" ; \
+		fi ; \
+	else \
+		echo "videoplayer: Skipping video re-encoding because the sample movie is missing" ; \
+		touch "$@" ; \
+	fi
+
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(OBJ) $(ZSTD_OBJ)

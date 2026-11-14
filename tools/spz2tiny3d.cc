@@ -22,7 +22,7 @@ typedef struct {
 
 using namespace std;
 
-uint32_t sample_every_n_particles = 3;
+uint32_t sample_every_n_particles = 2;
 
 #define REJECT_POSITIONS_LARGER_THAN (1000.0f)
 #define YSCALE (2)
