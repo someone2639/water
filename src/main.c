@@ -32,24 +32,16 @@
 
 // This is a callback for t3d_model_draw_custom, it is used when a texture in a model is set to dynamic/"reference"
 void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t *tileParams, rdpq_tile_t tile) {
-  if(tile != TILE0)return; // this callback can happen 2 times per mesh, you are allowed to skip calls
+    if(tile != TILE0)return; // this callback can happen 2 times per mesh, you are allowed to skip calls
 
-  surface_t *offscreenSurf = (surface_t*)userData;
+    surface_t *offscreenSurf = (surface_t*)userData;
 
-  int sHalf = OFFSCREEN_WD / 2;
-  int sFull = OFFSCREEN_WD;
+    #define SAMPLE_WD (32)
+    #define SAMPLE_HT (32)
+    #define DIMS(col, row) (col) * SAMPLE_WD, (row) * SAMPLE_HT, (col) * SAMPLE_WD + SAMPLE_WD, row * SAMPLE_HT + SAMPLE_HT
 
-  debugf("TEXREF: %lu\n", material->textureA.texReference);
-
-  // upload a slice of the offscreen-buffer, the screen in the TV model is split into 4 materials for each section
-  // if you are working with a small enough single texture, you can ofc use a normal sprite upload.
-  // the quadrant is determined by the texture reference set in fast64, which can be used as an arbitrary value
-  switch(material->textureA.texReference) { // Note: TILE1 is used here due to CC shenanigans
-    case 1: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     0,     sHalf, sHalf); break;
-    case 2: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  sHalf, 0,     sFull, sHalf); break;
-    case 3: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     sHalf, sHalf, sFull); break;
-    case 4: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  sHalf, sHalf, sFull, sFull); break;
-  }
+    int texRef = material->textureA.texReference;
+    rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  DIMS(0, 0));
 }
 
 [[noreturn]] int main() {
@@ -104,7 +96,8 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
     t3d_mat4fp_from_srt_euler(matFP, (float[]) { 0.25f, 0.25f, 0.25f }, (float[]) { 0, 0, 0 },
                               (float[]) { 0, -1, 0 });
 
-    fm_vec3_t camPos = { { -50.0f, 20.0f, 0.0f } };
+    // fm_vec3_t camPos = { { -50.0f, 20.0f, 0.0f } };
+    fm_vec3_t camPos = { { 720, -1025, -355 } };
     fm_vec3_t camTarget = { { 0, 0, 0 } };
     fm_vec3_t camDir = { { 0, 0, 1 } };
     float camRotX = 0.0f;
@@ -203,17 +196,18 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
             camPos.v[2] += camDir.v[2] * (float) joypad.stick_y * camSpeed;
             camPos.v[0] += camDir.v[2] * (float) joypad.stick_x * -camSpeed;
             camPos.v[2] -= camDir.v[0] * (float) joypad.stick_x * -camSpeed;
+            #define ROTSPEEDFACTOR 120
             if (joypad.btn.c_left) {
-                camRotX -= 40 * camRotSpeed;
+                camRotX -= ROTSPEEDFACTOR * camRotSpeed;
             }
             if (joypad.btn.c_right) {
-                camRotX += 40 * camRotSpeed;
+                camRotX += ROTSPEEDFACTOR * camRotSpeed;
             }
             if (joypad.btn.c_up) {
-                camRotY -= 40 * camRotSpeed;
+                camRotY -= ROTSPEEDFACTOR * camRotSpeed;
             }
             if (joypad.btn.c_down) {
-                camRotY += 40 * camRotSpeed;
+                camRotY += ROTSPEEDFACTOR * camRotSpeed;
             }
 
             camTarget.v[0] = camPos.v[0] + camDir.v[0];
@@ -229,7 +223,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         particleRot = (fm_vec3_t) { { 0, 0, 0 } };
         particlePos.y = 0;
         if (needRebuild) {
-            particleCount = read_splat(particlesS16, "rom://test.splat");
+            particleCount = read_splat(particlesS16, "rom://river_2.splat");
         }
         particleMatScale = (fm_vec3_t) { { partMatScaleVal, partSizeY * 2.9f, partMatScaleVal } };
 
@@ -251,7 +245,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
         t3d_viewport_attach(&viewport);
 
-        t3d_screen_clear_color(RGBA32(0, 0, 0, 0));
+        t3d_screen_clear_color(RGBA32(53, 132, 228, 0));
         t3d_screen_clear_depth();
 
         t3d_light_set_ambient(colorAmbient);
@@ -286,7 +280,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         // Also make sure that the first stack operation you do after 'tpx_state_from_t3d' is a push and
         // not a set.
         tpx_matrix_push(&matPartFP[frameIdx]);
-        // tpx_state_set_base_size(72);
+        tpx_state_set_base_size(255);
 
         // While each particle has its own size, there is a global scaling factor that can be set.
         // This can only scale particles down, so the range is 0.0 - 1.0.
@@ -329,14 +323,19 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         yuv_blitter_run(&yuv, &frame);
 
         rdpq_detach();
+        if (!video_next_frame(video)) {
+            debugf("VIDEO LOOP\n");
+            video_idx = 0;
+            video_rewind(video);
+        }
 
         rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
 
         #define VIDEOPLANE_SCALE (1.0f)
         t3d_mat4fp_from_srt_euler(&videoPlayerMtx[frameIdx],
             (float[3]){VIDEOPLANE_SCALE, VIDEOPLANE_SCALE, VIDEOPLANE_SCALE},
-            (float[3]){0.0f, 90.0f, 0.0f},
-            (float[3]){0,0,0}
+            (float[3]){0.0f, 00.0f, 0.0f},
+            (float[3]){720,-1200,-355}
         );
 
         if(!videoblock) {

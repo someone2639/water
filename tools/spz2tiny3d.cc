@@ -22,13 +22,18 @@ typedef struct {
 
 using namespace std;
 
-uint32_t sample_every_n_particles = 2;
+uint32_t sample_every_n_particles = 4;
+uint32_t max_particles = 500'000;
 
-#define REJECT_POSITIONS_LARGER_THAN (1000.0f)
+#define REJECT_POSITIONS_LARGER_THAN (20000.0f)
 #define YSCALE (2)
 #define YOFF (0)
 #define LARGEST_SCALE (240.0f)
 #define PARTICLE_WIDTH (150.0f)
+#define OBSCALE (1.5)
+#define MIN_PARTSIZE (10)
+
+int16_t center[] = {720, -1025, -355};
 
 typedef struct {
     int16_t minX; int16_t maxX;
@@ -98,7 +103,7 @@ uint8_t convert_color(float f) {
 }
 
 int16_t convert_position(float f) {
-    return (int16_t)(f * 1000.0f);
+    return (int16_t)(f * 500.0f);
 }
 
 void write16BE(FILE *f, uint8_t *data, uint32_t offset) {
@@ -168,17 +173,18 @@ int main(int argc, char **argv) {
         auto &scale = gc.positions[i];
         auto &color = gc.colors[i];
 
-        float posmag = vmag(
-            gc.positions[(i * 3) + 0],
-            gc.positions[(i * 3) + 1],
-            gc.positions[(i * 3) + 2]
-        );
 
         int16_t pos_converted[3] = {
             convert_position(gc.positions[(i * 3) + 0]),
             convert_position(gc.positions[(i * 3) + 1]),
             convert_position(gc.positions[(i * 3) + 2]),
         };
+
+        float posmag = vmag(
+            pos_converted[0] - center[0],
+            pos_converted[1] - center[1],
+            pos_converted[2] - center[2]
+        );
 
         if (posmag < REJECT_POSITIONS_LARGER_THAN) {
             if ((cursor & 1) == 0) {
@@ -195,6 +201,12 @@ int main(int argc, char **argv) {
                 );
 
                 particleChunk.texOffsetA = selectType(&gc.scales[(i * 3)]) * 32;
+                if (particleChunk.texOffsetA != 0) {
+                    particleChunk.sizeA *= OBSCALE;
+                }
+                if (particleChunk.sizeA < MIN_PARTSIZE) {
+                    particleChunk.sizeA = MIN_PARTSIZE;
+                }
 
                 particleChunk.colorA[0] = convert_color(gc.colors[(i * 3) + 0]);
                 particleChunk.colorA[1] = convert_color(gc.colors[(i * 3) + 1]);
@@ -214,6 +226,12 @@ int main(int argc, char **argv) {
                 );
 
                 particleChunk.texOffsetB = selectType(&gc.scales[(i * 3)]) * 32;
+                if (particleChunk.texOffsetB != 0) {
+                    particleChunk.sizeB *= OBSCALE;
+                }
+                if (particleChunk.sizeB < MIN_PARTSIZE) {
+                    particleChunk.sizeB = MIN_PARTSIZE;
+                }
 
                 particleChunk.colorB[0] = convert_color(gc.colors[(i * 3) + 0]);
                 particleChunk.colorB[1] = convert_color(gc.colors[(i * 3) + 1]);
@@ -224,6 +242,10 @@ int main(int argc, char **argv) {
             }
 
             cursor++;
+        }
+
+        if (i >= max_particles) {
+            break;
         }
     }
 }
