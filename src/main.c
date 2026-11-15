@@ -26,7 +26,31 @@
 #define RCP_TICKS_TO_USECS(ticks) (((ticks) * 1000000ULL) / RCP_FREQUENCY)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-#define FB_COUNT 3
+#define OFFSCREEN_WD 384
+#define OFFSCREEN_HT 216
+#define FB_COUNT 2
+
+// This is a callback for t3d_model_draw_custom, it is used when a texture in a model is set to dynamic/"reference"
+void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t *tileParams, rdpq_tile_t tile) {
+  if(tile != TILE0)return; // this callback can happen 2 times per mesh, you are allowed to skip calls
+
+  surface_t *offscreenSurf = (surface_t*)userData;
+
+  int sHalf = OFFSCREEN_WD / 2;
+  int sFull = OFFSCREEN_WD;
+
+  debugf("TEXREF: %lu\n", material->textureA.texReference);
+
+  // upload a slice of the offscreen-buffer, the screen in the TV model is split into 4 materials for each section
+  // if you are working with a small enough single texture, you can ofc use a normal sprite upload.
+  // the quadrant is determined by the texture reference set in fast64, which can be used as an arbitrary value
+  switch(material->textureA.texReference) { // Note: TILE1 is used here due to CC shenanigans
+    case 1: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     0,     sHalf, sHalf); break;
+    case 2: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  sHalf, 0,     sFull, sHalf); break;
+    case 3: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     sHalf, sHalf, sFull); break;
+    case 4: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  sHalf, sHalf, sFull, sFull); break;
+  }
+}
 
 [[noreturn]] int main() {
     debug_init_isviewer();
@@ -54,6 +78,8 @@
     // Init tpx here, same as t3d, you can pass in a custom matrix-stack size if needed.
     tpx_init((TPXInitParams) {});
 
+    video_register_codec(&h264_codec);
+
     t3d_debug_print_init();
 
     // Allocate a particle buffer.
@@ -73,6 +99,7 @@
 
     T3DMat4FP *matFP = malloc_uncached(sizeof(T3DMat4FP));
     T3DMat4FP *matPartFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
+    T3DMat4FP *videoPlayerMtx = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
     t3d_mat4fp_from_srt_euler(matFP, (float[]) { 0.25f, 0.25f, 0.25f }, (float[]) { 0, 0, 0 },
                               (float[]) { 0, -1, 0 });
@@ -102,10 +129,33 @@
 
     T3DModel *videoplayer = t3d_model_load("rom:/videosurface.t3dm");
 
+    // VIDEO INIT CODE
+    yuv_init();
+    int buffered_pics = 3;
+    video_t *video = video_open("rom://river1.h264", &(video_parms_t){ .buffered_pics = buffered_pics });
+    video_info_t info = video_get_info(video);
+    uint32_t video_idx = 0;
+    bool vi_16bpp = display_get_bitdepth() == 2;
+    yuv_blitter_t yuv = yuv_blitter_new_fmv(
+        info.width, info.height,
+        info.width, info.height,
+        &(yuv_fmv_parms_t){
+            .cs = &info.colorspace,
+            .video_aspect_ratio = info.aspect_ratio,
+            .display_aspect_ratio = OFFSCREEN_WD / OFFSCREEN_HT,
+            .enable_dithering = vi_16bpp, // YUV blitter will dither in 16bpp mode
+        }
+    );
+
+
+    surface_t offscreenSurf = surface_alloc(FMT_RGBA16, OFFSCREEN_WD, OFFSCREEN_HT);
+    surface_t offscreenSurfZ = surface_alloc(FMT_RGBA16, OFFSCREEN_WD, OFFSCREEN_HT);
+
+    rspq_block_t *videoblock = NULL;
+    sprite_t *particleTex = sprite_load("rom://particleOrientation.ia4.sprite");
 
     while (true) {
-        // ======== Update ======== //
-        sprite_t *particleTex = sprite_load("rom://particleOrientation.ia4.sprite");
+        // ======== Update Scene ======== //
         rdpq_texparms_t particleTexP = {};
         int logScale =  - __builtin_ctz(particleTex->height / 8);
         rdpq_sprite_upload(TILE0, particleTex, &(rdpq_texparms_t){
@@ -201,7 +251,7 @@
 
         t3d_viewport_attach(&viewport);
 
-        t3d_screen_clear_color(RGBA32(255, 255, 255, 0));
+        t3d_screen_clear_color(RGBA32(0, 0, 0, 0));
         t3d_screen_clear_depth();
 
         t3d_light_set_ambient(colorAmbient);
@@ -266,9 +316,43 @@
         // Make sure end up at the same stack level as before.
         tpx_matrix_pop(1);
 
-        // After all particles are drawn, there is nothing special to do.
-        // You can either continue with t3d (remember to revert rdpq settings again) or do other 2D
-        // draws.
+        // ======== Decode 1 FMV FRAME ============= //
+        int new_idx = video_seek(video, video_idx);
+        if (new_idx < 0) {
+            debugf("VIDEO SEEK not supported\n");
+        }
+        video_idx += 1;
+
+        rdpq_attach_clear(&offscreenSurf, &offscreenSurfZ);
+        // Get the next video frame and feed it into our previously set up blitter.
+        yuv_frame_t frame = video_get_frame(video);
+        yuv_blitter_run(&yuv, &frame);
+
+        rdpq_detach();
+
+        rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
+
+        #define VIDEOPLANE_SCALE (1.0f)
+        t3d_mat4fp_from_srt_euler(&videoPlayerMtx[frameIdx],
+            (float[3]){VIDEOPLANE_SCALE, VIDEOPLANE_SCALE, VIDEOPLANE_SCALE},
+            (float[3]){0.0f, 90.0f, 0.0f},
+            (float[3]){0,0,0}
+        );
+
+        if(!videoblock) {
+            rspq_block_begin();
+
+            t3d_model_draw_custom(videoplayer, (T3DModelDrawConf){
+                .userData = &offscreenSurf,
+                .dynTextureCb = dynamic_tex_cb,
+            });
+            t3d_matrix_pop(1);
+            videoblock = rspq_block_end();
+        }
+
+        t3d_matrix_push(&videoPlayerMtx[frameIdx]);
+        // for the actual draw, you can use the generic rspq-api.
+        rspq_block_run(videoblock);
 
         t3d_debug_print_start();
         t3d_debug_printf(20, 18, "[D] Particles: %ld", particleCount);
