@@ -38,23 +38,15 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
     #define SAMPLE_WD (32)
     #define SAMPLE_HT (32)
-    #define DIMS(col, row) (col) * SAMPLE_WD, (row) * SAMPLE_HT, (col) * SAMPLE_WD + SAMPLE_WD - 1, row * SAMPLE_HT + SAMPLE_HT - 1
+    #define DIMS(col, row) (col) * SAMPLE_WD, (row) * SAMPLE_HT, (col) * SAMPLE_WD + SAMPLE_WD, row * SAMPLE_HT + SAMPLE_HT
 
 
-    int texRef = material->textureA.texReference;
+    int texRefLiteral = material->textureA.texReference;
 
-    debugf("DRAW %d\n", texRef);
+    int texRef = texRefLiteral - 1;
 
-    switch (texRef) {
-        case 1: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  0,   0,  32, 32); break;
-        case 2: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  32,  0,  64, 32); break;
-        case 3: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  64,  0,  96, 32); break;
-        case 4: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  96,  0, 128, 32); break;
-        case 5: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,   0, 32,  32, 64); break;
-        case 6: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  32, 32,  64, 64); break;
-        case 7: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  64, 32,  96, 64); break;
-        case 8: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  96, 32, 128, 64); break;
-    }
+    debugf("DRAWDIMS %d %d %d %d %d\n", texRef, DIMS(texRef % 8, texRef / 8));
+    rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  DIMS(texRef % 8, texRef / 8));
 }
 
 [[noreturn]] int main() {
@@ -121,6 +113,8 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
     fm_vec3_norm(&lightDirVec, &lightDirVec);
 
     T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
+    T3DViewport viewportOffscreen = t3d_viewport_create_buffered(FB_COUNT);
+    t3d_viewport_set_area(&viewportOffscreen, 0, 0, OFFSCREEN_WD, OFFSCREEN_HT);
     float partSizeX = 1.0f;
     float partSizeY = 1.0f;
 
@@ -148,7 +142,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         &(yuv_fmv_parms_t){
             .cs = &info.colorspace,
             .video_aspect_ratio = info.aspect_ratio,
-            .display_aspect_ratio = OFFSCREEN_WD / OFFSCREEN_HT,
+            .display_aspect_ratio = info.aspect_ratio,
             .enable_dithering = vi_16bpp, // YUV blitter will dither in 16bpp mode
         }
     );
@@ -165,13 +159,6 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         // ======== Update Scene ======== //
         rdpq_texparms_t particleTexP = {};
         int logScale =  - __builtin_ctz(particleTex->height / 8);
-        rdpq_sprite_upload(TILE0, particleTex, &(rdpq_texparms_t){
-            .s.repeats = REPEAT_INFINITE,
-            .t.repeats = REPEAT_INFINITE,
-
-            .s.scale_log = logScale,
-            .t.scale_log = logScale,
-        });
 
         frameIdx = (frameIdx + 1) % FB_COUNT;
         joypad_poll();
@@ -250,10 +237,44 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 7.0f, 420.0f);
         t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t) { { 0, 1, 0 } });
 
+        t3d_viewport_set_projection(&viewportOffscreen, T3D_DEG_TO_RAD(85.0f), 5.0f, 150.0f);
+        t3d_viewport_look_at(&viewportOffscreen, &(fm_vec3_t){{0,5.0f,40.0f}}, &(fm_vec3_t){{0,0,0}}, &(fm_vec3_t){{0,1,0}});
+
         // ======== Draw (3D) ======== //
+
+        // OFFSCREEN CONTEXT
+        rdpq_attach_clear(&offscreenSurf, &offscreenSurfZ);
+        if (videoFrameTime > 0.015f) {
+            videoFrameTime = 0;
+            if(!video_next_frame(video)) {
+                video_rewind(video);
+                video_next_frame(video);
+            }
+        }
+        // Get the next video frame and feed it into our previously set up blitter.
+        yuv_frame_t frame = video_get_frame(video);
+        yuv_blitter_run(&yuv, &frame);
+        rdpq_detach();
+
+
+        if(!videoblock) {
+            rspq_block_begin();
+            rdpq_set_env_color(RGBA32(0,0,0,255));
+            rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
+            rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
+            t3d_model_draw_custom(videoplayer, (T3DModelDrawConf){
+                .userData = &offscreenSurf,
+                .dynTextureCb = dynamic_tex_cb,
+            });
+            t3d_matrix_pop(1);
+            videoblock = rspq_block_end();
+            debugf("CACHING MODEL!\n");
+        }
+
 
         // Nothing Special here, just regular 3d draws...
         rdpq_attach(display_get(), display_get_zbuf());
+
         t3d_frame_start();
         rdpq_mode_antialias(AA_NONE);
         rdpq_mode_dithering(DITHER_NONE_NONE);
@@ -285,6 +306,13 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
         rdpq_mode_combiner(RDPQ_COMBINER1((PRIM,0,TEX0,0), (0,0,0,TEX0)));
         rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
+        rdpq_sprite_upload(TILE0, particleTex, &(rdpq_texparms_t){
+            .s.repeats = REPEAT_INFINITE,
+            .t.repeats = REPEAT_INFINITE,
+
+            .s.scale_log = logScale,
+            .t.scale_log = logScale,
+        });
 
         // tpx is its own ucode, so nothing that was set up in t3d carries over automatically.
         // For convenience, you can call 'tpx_state_from_t3d' which will copy over
@@ -313,7 +341,8 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         // Now draw particles. internally this will load, transform and draw them in one go on the RSP.
         // While the ucode can only handle a 344 at a time, this function will automatically batch them
         // so you can specify an arbitrary amount of particles (as long as it's an even count)
-        // tpx_particle_draw_tex_s16(particlesS16, particleCount);
+
+        tpx_particle_draw_tex_s16(particlesS16, particleCount);
 
         if (measureTime) {
             rspq_highpri_end();
@@ -325,41 +354,12 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         // Make sure end up at the same stack level as before.
         tpx_matrix_pop(1);
 
-        // DIFFERENT CONTEXT
-        rdpq_attach_clear(&offscreenSurf, &offscreenSurfZ);
-        if (videoFrameTime > 0.015f) {
-            videoFrameTime = 0;
-            if(!video_next_frame(video)) {
-                video_rewind(video);
-                video_next_frame(video);
-            }
-        }
-        // Get the next video frame and feed it into our previously set up blitter.
-        yuv_frame_t frame = video_get_frame(video);
-        yuv_blitter_run(&yuv, &frame);
-        rdpq_detach();
-
-        rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
-
         #define VIDEOPLANE_SCALE (1.0f)
         t3d_mat4fp_from_srt_euler(&videoPlayerMtx[frameIdx],
             (float[3]){VIDEOPLANE_SCALE, VIDEOPLANE_SCALE, VIDEOPLANE_SCALE},
             (float[3]){0.0f, 00.0f, 0.0f},
             (float[3]){720,-1200,-355}
         );
-
-        if(!videoblock) {
-            rspq_block_begin();
-            rdpq_set_env_color(RGBA32(0,0,0,255));
-            rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
-            t3d_model_draw_custom(videoplayer, (T3DModelDrawConf){
-                .userData = &offscreenSurf,
-                .dynTextureCb = dynamic_tex_cb,
-            });
-            t3d_matrix_pop(1);
-            videoblock = rspq_block_end();
-            debugf("CACHING MODEL!\n");
-        }
 
         t3d_matrix_push(&videoPlayerMtx[frameIdx]);
         // for the actual draw, you can use the generic rspq-api.
@@ -379,6 +379,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
             // t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus", rspTimeTPX);
             t3d_debug_printf(20, 240 - 24, "RDP    : %6lldus", rdpTimeBusy);
         }
+        // yuv_blitter_run(&yuv, &frame);
         rdpq_detach_show();
 
 #if RSPQ_PROFILE
