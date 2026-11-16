@@ -26,8 +26,8 @@
 #define RCP_TICKS_TO_USECS(ticks) (((ticks) * 1000000ULL) / RCP_FREQUENCY)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-#define OFFSCREEN_WD 384
-#define OFFSCREEN_HT 216
+#define OFFSCREEN_WD 256
+#define OFFSCREEN_HT 128
 #define FB_COUNT 2
 
 // This is a callback for t3d_model_draw_custom, it is used when a texture in a model is set to dynamic/"reference"
@@ -38,10 +38,23 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
     #define SAMPLE_WD (32)
     #define SAMPLE_HT (32)
-    #define DIMS(col, row) (col) * SAMPLE_WD, (row) * SAMPLE_HT, (col) * SAMPLE_WD + SAMPLE_WD, row * SAMPLE_HT + SAMPLE_HT
+    #define DIMS(col, row) (col) * SAMPLE_WD, (row) * SAMPLE_HT, (col) * SAMPLE_WD + SAMPLE_WD - 1, row * SAMPLE_HT + SAMPLE_HT - 1
+
 
     int texRef = material->textureA.texReference;
-    rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  DIMS(0, 0));
+
+    debugf("DRAW %d\n", texRef);
+
+    switch (texRef) {
+        case 1: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  0,   0,  32, 32); break;
+        case 2: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  32,  0,  64, 32); break;
+        case 3: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  64,  0,  96, 32); break;
+        case 4: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  96,  0, 128, 32); break;
+        case 5: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,   0, 32,  32, 64); break;
+        case 6: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  32, 32,  64, 64); break;
+        case 7: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  64, 32,  96, 64); break;
+        case 8: rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  96, 32, 128, 64); break;
+    }
 }
 
 [[noreturn]] int main() {
@@ -124,14 +137,14 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
     // VIDEO INIT CODE
     yuv_init();
-    int buffered_pics = 3;
-    video_t *video = video_open("rom://river1.h264", &(video_parms_t){ .buffered_pics = buffered_pics });
+    int buffered_pics = 4;
+    video_t *video = video_open("rom://river4.h264", &(video_parms_t){ .buffered_pics = buffered_pics });
     video_info_t info = video_get_info(video);
     uint32_t video_idx = 0;
     bool vi_16bpp = display_get_bitdepth() == 2;
     yuv_blitter_t yuv = yuv_blitter_new_fmv(
         info.width, info.height,
-        info.width, info.height,
+        OFFSCREEN_WD, OFFSCREEN_HT,
         &(yuv_fmv_parms_t){
             .cs = &info.colorspace,
             .video_aspect_ratio = info.aspect_ratio,
@@ -146,6 +159,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
     rspq_block_t *videoblock = NULL;
     sprite_t *particleTex = sprite_load("rom://particleOrientation.ia4.sprite");
+    float videoFrameTime = 0;
 
     while (true) {
         // ======== Update Scene ======== //
@@ -183,6 +197,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         measureTime = joypad.btn.z;
 #endif
         {
+            videoFrameTime += deltaTime;
             float camSpeed = deltaTime * 8.0f;
             float camRotSpeed = deltaTime * 0.02f;
 
@@ -298,7 +313,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         // Now draw particles. internally this will load, transform and draw them in one go on the RSP.
         // While the ucode can only handle a 344 at a time, this function will automatically batch them
         // so you can specify an arbitrary amount of particles (as long as it's an even count)
-        tpx_particle_draw_tex_s16(particlesS16, particleCount);
+        // tpx_particle_draw_tex_s16(particlesS16, particleCount);
 
         if (measureTime) {
             rspq_highpri_end();
@@ -310,24 +325,19 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         // Make sure end up at the same stack level as before.
         tpx_matrix_pop(1);
 
-        // ======== Decode 1 FMV FRAME ============= //
-        int new_idx = video_seek(video, video_idx);
-        if (new_idx < 0) {
-            debugf("VIDEO SEEK not supported\n");
-        }
-        video_idx += 1;
-
+        // DIFFERENT CONTEXT
         rdpq_attach_clear(&offscreenSurf, &offscreenSurfZ);
+        if (videoFrameTime > 0.015f) {
+            videoFrameTime = 0;
+            if(!video_next_frame(video)) {
+                video_rewind(video);
+                video_next_frame(video);
+            }
+        }
         // Get the next video frame and feed it into our previously set up blitter.
         yuv_frame_t frame = video_get_frame(video);
         yuv_blitter_run(&yuv, &frame);
-
         rdpq_detach();
-        if (!video_next_frame(video)) {
-            debugf("VIDEO LOOP\n");
-            video_idx = 0;
-            video_rewind(video);
-        }
 
         rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
 
@@ -340,13 +350,15 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
         if(!videoblock) {
             rspq_block_begin();
-
+            rdpq_set_env_color(RGBA32(0,0,0,255));
+            rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
             t3d_model_draw_custom(videoplayer, (T3DModelDrawConf){
                 .userData = &offscreenSurf,
                 .dynTextureCb = dynamic_tex_cb,
             });
             t3d_matrix_pop(1);
             videoblock = rspq_block_end();
+            debugf("CACHING MODEL!\n");
         }
 
         t3d_matrix_push(&videoPlayerMtx[frameIdx]);
