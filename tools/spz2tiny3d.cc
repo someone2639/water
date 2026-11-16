@@ -22,16 +22,16 @@ typedef struct {
 
 using namespace std;
 
-uint32_t sample_every_n_particles = 4;
+uint32_t sample_every_n_particles = 1;
 uint32_t max_particles = 500'000;
 
 #define REJECT_POSITIONS_LARGER_THAN (20000.0f)
 #define YSCALE (2)
 #define YOFF (0)
-#define LARGEST_SCALE (240.0f)
-#define PARTICLE_WIDTH (150.0f)
-#define OBSCALE (1.5)
-#define MIN_PARTSIZE (10)
+#define LARGEST_SCALE (190.0f)
+#define PARTICLE_WIDTH (100.0f)
+#define OBSCALE (1.66666)
+#define MIN_PARTSIZE (5)
 
 int16_t center[] = {720, -1025, -355};
 
@@ -67,7 +67,7 @@ uint8_t selectType(float *scale) {
     float avgXZ = (scale[0] + scale[2]) / 2;
     float avgYZ = (scale[1] + scale[2]) / 2;
 
-    #define SCALE_THRESHOLD (1.2f)
+    #define SCALE_THRESHOLD (1.1f)
 
     if ((scale[2] * SCALE_THRESHOLD) > avgXY) {
         return (uint8_t)PT_OBTALL;

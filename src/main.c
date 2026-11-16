@@ -45,8 +45,8 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
     int texRef = texRefLiteral - 1;
 
-    debugf("DRAWDIMS %d %d %d %d %d\n", texRef, DIMS(texRef % 8, texRef / 8));
-    rdpq_tex_upload_sub(TILE0, offscreenSurf, NULL,  DIMS(texRef % 8, texRef / 8));
+    // debugf("DRAWDIMS %d %d %d %d %d %f %f\n", texRef, DIMS(texRef % 8, texRef / 8), material->textureA.s.height, material->textureA.t.height);
+    rdpq_tex_upload_sub(TILE0, offscreenSurf, tileParams,  DIMS(texRef % 8, texRef / 8));
 }
 
 [[noreturn]] int main() {
@@ -102,11 +102,11 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
                               (float[]) { 0, -1, 0 });
 
     // fm_vec3_t camPos = { { -50.0f, 20.0f, 0.0f } };
-    fm_vec3_t camPos = { { 720, -1025, -355 } };
+    fm_vec3_t camPos = { { 514, -956, -599 } };
     fm_vec3_t camTarget = { { 0, 0, 0 } };
     fm_vec3_t camDir = { { 0, 0, 1 } };
-    float camRotX = 0.0f;
-    float camRotY = -0.2f;
+    float camRotX = 6.74;
+    float camRotY = -0.72f;
 
     uint8_t colorAmbient[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
     fm_vec3_t lightDirVec = { { 0.0f, 0.0f, 1.0f } };
@@ -154,6 +154,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
     rspq_block_t *videoblock = NULL;
     sprite_t *particleTex = sprite_load("rom://particleOrientation.ia4.sprite");
     float videoFrameTime = 0;
+    int numFramesUnheld = 0;
 
     while (true) {
         // ======== Update Scene ======== //
@@ -171,6 +172,15 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         }
         if (joypad.stick_y < 10 && joypad.stick_y > -10) {
             joypad.stick_y = 0;
+        }
+
+        if (joypad.stick_x == 0 && joypad.stick_y == 0 && joypad.btn.raw == 0) {
+            numFramesUnheld ++;
+        }
+
+        if (numFramesUnheld > 10) {
+            joypad.stick_x = -80;
+            joypad.btn.c_right = 1;
         }
 
         if (joypad.btn.a) {
@@ -234,7 +244,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
         t3d_mat4fp_from_srt_euler(&matPartFP[frameIdx], particleMatScale.v, particleRot.v,
                                   particlePos.v);
 
-        t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 7.0f, 420.0f);
+        t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 10.0f, 1000.0f);
         t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t) { { 0, 1, 0 } });
 
         t3d_viewport_set_projection(&viewportOffscreen, T3D_DEG_TO_RAD(85.0f), 5.0f, 150.0f);
@@ -259,7 +269,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
         if(!videoblock) {
             rspq_block_begin();
-            rdpq_set_env_color(RGBA32(0,0,0,255));
+            rdpq_set_env_color(RGBA32(0,0,0,200));
             rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,SHADE,0), (0,0,0,ENV)));
             rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
             t3d_model_draw_custom(videoplayer, (T3DModelDrawConf){
@@ -268,7 +278,6 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
             });
             t3d_matrix_pop(1);
             videoblock = rspq_block_end();
-            debugf("CACHING MODEL!\n");
         }
 
 
@@ -356,18 +365,19 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
 
         #define VIDEOPLANE_SCALE (1.0f)
         t3d_mat4fp_from_srt_euler(&videoPlayerMtx[frameIdx],
-            (float[3]){VIDEOPLANE_SCALE, VIDEOPLANE_SCALE, VIDEOPLANE_SCALE},
+            (float[3]){8.0, VIDEOPLANE_SCALE, 2.0},
             (float[3]){0.0f, 00.0f, 0.0f},
-            (float[3]){720,-1200,-355}
+            (float[3]){759,-1150,-700}
         );
 
+        // Draw the river
         t3d_matrix_push(&videoPlayerMtx[frameIdx]);
-        // for the actual draw, you can use the generic rspq-api.
         rspq_block_run(videoblock);
 
         t3d_debug_print_start();
         t3d_debug_printf(20, 18, "[D] Particles: %ld", particleCount);
         t3d_debug_printf(20, 30, "[CAM] %.2f %.2f %.2f", camPos.v[0], camPos.v[1], camPos.v[2]);
+        t3d_debug_printf(20, 48, "[CAMR] %.2f %.2f", camRotX, camRotY);
         t3d_debug_printf(220, 18, "FPS: %.2f", display_get_fps());
 
         if (measureTime) {
